@@ -1,0 +1,39 @@
+name: smartkobi
+description: SmartKOBİ SaaS Application
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: ">=3.0.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # Core
+  supabase_flutter: ^2.5.6
+  intl: ^0.18.1
+  http: ^1.2.2
+
+  # Charts
+  fl_chart: ^0.65.0
+
+  # UI
+  cupertino_icons: ^1.0.8
+
+  # QR & Barcode
+  qr_flutter: ^4.1.0
+  mobile_scanner: ^3.5.7
+
+   # CSV Import (STABLE)
+  file_picker: ^5.5.0
+  csv: ^5.1.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
