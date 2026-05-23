@@ -43,7 +43,7 @@ class _LoginPagePremiumState extends State<LoginPagePremium> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Şifre sıfırlama bağlantısı e-posta adresinize gönderildi.'),
-          backgroundColor: Colors.green,
+          backgroundColor: AppColors.success,
         ),
       );
     } catch (_) {
@@ -76,7 +76,7 @@ class _LoginPagePremiumState extends State<LoginPagePremium> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Giriş başarılı. Ana sayfa açılıyor...'),
-            backgroundColor: Colors.green,
+            backgroundColor: AppColors.success,
             duration: Duration(seconds: 1),
           ),
         );
@@ -113,7 +113,7 @@ class _LoginPagePremiumState extends State<LoginPagePremium> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
-        backgroundColor: Colors.red.shade700,
+        backgroundColor: AppColors.danger,
         duration: const Duration(seconds: 3),
       ),
     );
@@ -122,196 +122,184 @@ class _LoginPagePremiumState extends State<LoginPagePremium> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF7F8FA),
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            colors: [
-              Color(0xFFF9FAFB),
-              Color(0xFFF4F6F8),
-            ],
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-          ),
-        ),
-        child: SafeArea(
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              final isWide = constraints.maxWidth >= 980;
-              final horizontalPadding = constraints.maxWidth >= 1200
-                  ? 48.0
-                  : constraints.maxWidth >= 760
-                      ? 28.0
-                      : 18.0;
+      backgroundColor: AppColors.scaffoldBackground,
+      body: SafeArea(
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final isWide = constraints.maxWidth >= 980;
+            final horizontalPadding = constraints.maxWidth >= 1200
+                ? 48.0
+                : constraints.maxWidth >= 760
+                    ? 28.0
+                    : 18.0;
 
-              final card = _LoginCardShell(
-                child: Form(
-                  key: _formKey,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        'Giriş Yap',
-                        style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                              color: AppColors.navy900,
-                              fontWeight: FontWeight.w800,
-                            ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Hesabınıza giriş yaparak işletme verilerinize güvenle erişin.',
-                        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                              color: const Color(0xFF5E6B7A),
-                              height: 1.5,
-                            ),
-                      ),
-                      const SizedBox(height: 28),
-                      _PremiumField(
-                        controller: _emailCtrl,
-                        label: 'E-posta adresiniz',
-                        hint: 'ornek@isletme.com',
-                        icon: Icons.mail_outline_rounded,
-                        keyboardType: TextInputType.emailAddress,
-                        autofill: const [
-                          AutofillHints.username,
-                          AutofillHints.email,
-                        ],
-                        enabled: !_loading,
-                        validator: (value) {
-                          if (value == null || value.trim().isEmpty) {
-                            return 'E-posta adresinizi girin';
-                          }
-                          if (!value.trim().contains('@') ||
-                              !value.trim().contains('.')) {
-                            return 'Geçerli bir e-posta adresi girin';
-                          }
-                          return null;
-                        },
-                      ),
-                      const SizedBox(height: 18),
-                      _PremiumPasswordField(
-                        controller: _passCtrl,
-                        obscure: _obscure,
-                        onToggleObscure: () => setState(() => _obscure = !_obscure),
-                        enabled: !_loading,
-                        validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return 'Şifrenizi girin';
-                          }
-                          if (value.length < 6) {
-                            return 'Şifre en az 6 karakter olmalı';
-                          }
-                          return null;
-                        },
-                        onFieldSubmitted: (_) => _loading ? null : _login(),
-                      ),
-                      const SizedBox(height: 10),
-                      Align(
-                        alignment: Alignment.centerRight,
-                        child: TextButton(
-                          onPressed: _loading ? null : _resetPassword,
-                          style: TextButton.styleFrom(
-                            foregroundColor: AppColors.navy800,
-                            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+            final card = _LoginCardShell(
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'Giriş Yap',
+                      style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                            color: AppColors.textPrimary,
+                            fontWeight: FontWeight.w800,
                           ),
-                          child: const Text(
-                            'Şifremi Unuttum',
-                            style: TextStyle(
-                              fontWeight: FontWeight.w600,
-                              decoration: TextDecoration.underline,
-                            ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Hesabınıza giriş yaparak işletme verilerinize güvenle erişin.',
+                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                            color: AppColors.textSecondary,
+                            height: 1.5,
+                          ),
+                    ),
+                    const SizedBox(height: 28),
+                    _PremiumField(
+                      controller: _emailCtrl,
+                      label: 'E-posta adresiniz',
+                      hint: 'ornek@isletme.com',
+                      icon: Icons.mail_outline_rounded,
+                      keyboardType: TextInputType.emailAddress,
+                      autofill: const [
+                        AutofillHints.username,
+                        AutofillHints.email,
+                      ],
+                      enabled: !_loading,
+                      validator: (value) {
+                        if (value == null || value.trim().isEmpty) {
+                          return 'E-posta adresinizi girin';
+                        }
+                        if (!value.trim().contains('@') ||
+                            !value.trim().contains('.')) {
+                          return 'Geçerli bir e-posta adresi girin';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 18),
+                    _PremiumPasswordField(
+                      controller: _passCtrl,
+                      obscure: _obscure,
+                      onToggleObscure: () => setState(() => _obscure = !_obscure),
+                      enabled: !_loading,
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Şifrenizi girin';
+                        }
+                        if (value.length < 6) {
+                          return 'Şifre en az 6 karakter olmalı';
+                        }
+                        return null;
+                      },
+                      onFieldSubmitted: (_) => _loading ? null : _login(),
+                    ),
+                    const SizedBox(height: 10),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: TextButton(
+                        onPressed: _loading ? null : _resetPassword,
+                        style: TextButton.styleFrom(
+                          foregroundColor: AppColors.primaryNavy,
+                          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+                        ),
+                        child: const Text(
+                          'Şifremi Unuttum',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            decoration: TextDecoration.underline,
                           ),
                         ),
                       ),
-                      const SizedBox(height: 20),
-                      _PrimaryLoginButton(
-                        loading: _loading,
-                        onPressed: _loading ? null : _login,
-                      ),
-                      const SizedBox(height: 18),
-                      Center(
-                        child: Wrap(
-                          crossAxisAlignment: WrapCrossAlignment.center,
-                          alignment: WrapAlignment.center,
-                          spacing: 6,
-                          runSpacing: 4,
-                          children: [
-                            Text(
-                              'Hesabınız yok mu?',
-                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                    color: const Color(0xFF667387),
-                                  ),
+                    ),
+                    const SizedBox(height: 20),
+                    _PrimaryLoginButton(
+                      loading: _loading,
+                      onPressed: _loading ? null : _login,
+                    ),
+                    const SizedBox(height: 18),
+                    Center(
+                      child: Wrap(
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        alignment: WrapAlignment.center,
+                        spacing: 6,
+                        runSpacing: 4,
+                        children: [
+                          Text(
+                            'Hesabınız yok mu?',
+                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                  color: AppColors.textSecondary,
+                                ),
+                          ),
+                          TextButton(
+                            onPressed: _loading
+                                ? null
+                                : () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (_) => const RegisterPage(),
+                                      ),
+                                    );
+                                  },
+                            style: TextButton.styleFrom(
+                              foregroundColor: AppColors.primaryNavy,
+                              padding: const EdgeInsets.symmetric(horizontal: 4),
                             ),
-                            TextButton(
-                              onPressed: _loading
-                                  ? null
-                                  : () {
-                                      Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder: (_) => const RegisterPage(),
-                                        ),
-                                      );
-                                    },
-                              style: TextButton.styleFrom(
-                                foregroundColor: AppColors.navy900,
-                                padding: const EdgeInsets.symmetric(horizontal: 4),
+                            child: const Text(
+                              'Kayıt olun',
+                              style: TextStyle(fontWeight: FontWeight.w700),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    const _SecurityFootnote(),
+                  ],
+                ),
+              ),
+            );
+
+            return Center(
+              child: SingleChildScrollView(
+                padding: EdgeInsets.symmetric(
+                  horizontal: horizontalPadding,
+                  vertical: 24,
+                ),
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 1180),
+                  child: isWide
+                      ? Row(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            const Expanded(
+                              child: Padding(
+                                padding: EdgeInsets.only(right: 36),
+                                child: _LoginShowcase(),
                               ),
-                              child: const Text(
-                                'Kayıt olun',
-                                style: TextStyle(fontWeight: FontWeight.w700),
-                              ),
+                            ),
+                            ConstrainedBox(
+                              constraints: const BoxConstraints(maxWidth: 470),
+                              child: card,
+                            ),
+                          ],
+                        )
+                      : Column(
+                          children: [
+                            const _CompactBrandBlock(),
+                            const SizedBox(height: 24),
+                            ConstrainedBox(
+                              constraints: const BoxConstraints(maxWidth: 460),
+                              child: card,
                             ),
                           ],
                         ),
-                      ),
-                      const SizedBox(height: 24),
-                      const _SecurityFootnote(),
-                    ],
-                  ),
                 ),
-              );
-
-              return Center(
-                child: SingleChildScrollView(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: horizontalPadding,
-                    vertical: 24,
-                  ),
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 1180),
-                    child: isWide
-                        ? Row(
-                            crossAxisAlignment: CrossAxisAlignment.center,
-                            children: [
-                              const Expanded(
-                                child: Padding(
-                                  padding: EdgeInsets.only(right: 36),
-                                  child: _LoginShowcase(),
-                                ),
-                              ),
-                              ConstrainedBox(
-                                constraints: const BoxConstraints(maxWidth: 470),
-                                child: card,
-                              ),
-                            ],
-                          )
-                        : Column(
-                            children: [
-                              const _CompactBrandBlock(),
-                              const SizedBox(height: 24),
-                              ConstrainedBox(
-                                constraints: const BoxConstraints(maxWidth: 460),
-                                child: card,
-                              ),
-                            ],
-                          ),
-                  ),
-                ),
-              );
-            },
-          ),
+              ),
+            );
+          },
         ),
       ),
     );
@@ -332,7 +320,7 @@ class _LoginShowcase extends StatelessWidget {
         Text(
           'SmartKOBİ',
           style: Theme.of(context).textTheme.displaySmall?.copyWith(
-                color: AppColors.navy900,
+                color: AppColors.textPrimary,
                 fontWeight: FontWeight.w800,
               ),
         ),
@@ -340,7 +328,7 @@ class _LoginShowcase extends StatelessWidget {
         Text(
           'KOBİ’niz için akıllı yönetim paneli.',
           style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                color: AppColors.navy800,
+                color: AppColors.textSecondary,
                 fontWeight: FontWeight.w700,
               ),
         ),
@@ -350,7 +338,7 @@ class _LoginShowcase extends StatelessWidget {
           child: Text(
             'Finans, cari, stok, nakit akışı ve destek analizlerini tek ekranda yönetin.',
             style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                  color: const Color(0xFF5F6B79),
+                  color: AppColors.textSecondary,
                   height: 1.7,
                 ),
           ),
@@ -394,7 +382,7 @@ class _CompactBrandBlock extends StatelessWidget {
         Text(
           'SmartKOBİ',
           style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                color: AppColors.navy900,
+                color: AppColors.textPrimary,
                 fontWeight: FontWeight.w800,
               ),
         ),
@@ -403,7 +391,7 @@ class _CompactBrandBlock extends StatelessWidget {
           'İşletmenizi tek yerden yönetin.',
           textAlign: TextAlign.center,
           style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                color: const Color(0xFF5F6B79),
+                color: AppColors.textSecondary,
               ),
         ),
       ],
@@ -421,13 +409,13 @@ class _BrandBadge extends StatelessWidget {
       width: 74,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(22),
-        color: Colors.white,
-        border: Border.all(color: const Color(0xFFE7EBF0)),
+        color: AppColors.surface,
+        border: Border.all(color: AppColors.border),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.06),
+            color: Colors.black.withValues(alpha: 0.03),
             blurRadius: 22,
-            offset: const Offset(0, 14),
+            offset: const Offset(0, 10),
           ),
         ],
       ),
@@ -437,11 +425,11 @@ class _BrandBadge extends StatelessWidget {
           width: 52,
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(16),
-            color: AppColors.navy900,
+            color: AppColors.primaryNavy,
           ),
           child: const Icon(
             Icons.hub_rounded,
-            color: AppColors.gold400,
+            color: AppColors.accentGold,
             size: 28,
           ),
         ),
@@ -460,14 +448,14 @@ class _LoginCardShell extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.fromLTRB(28, 28, 28, 24),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.surface,
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: const Color(0xFFE7EBF0)),
+        border: Border.all(color: AppColors.border),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF0B1B2E).withValues(alpha: 0.08),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 30,
-            offset: const Offset(0, 18),
+            offset: const Offset(0, 12),
           ),
         ],
       ),
@@ -506,13 +494,13 @@ class _PremiumField extends StatelessWidget {
       autofillHints: autofill,
       validator: validator,
       style: const TextStyle(
-        color: AppColors.navy900,
-        fontWeight: FontWeight.w600,
+        color: AppColors.textPrimary,
+        fontWeight: FontWeight.w500,
       ),
-      decoration: _inputDecoration(
-        label: label,
-        hint: hint,
-        icon: icon,
+      decoration: InputDecoration(
+        labelText: label,
+        hintText: hint,
+        prefixIcon: Icon(icon),
       ),
     );
   }
@@ -545,69 +533,22 @@ class _PremiumPasswordField extends StatelessWidget {
       validator: validator,
       onFieldSubmitted: onFieldSubmitted,
       style: const TextStyle(
-        color: AppColors.navy900,
-        fontWeight: FontWeight.w600,
+        color: AppColors.textPrimary,
+        fontWeight: FontWeight.w500,
       ),
-      decoration: _inputDecoration(
-        label: 'Şifreniz',
-        hint: 'Şifrenizi girin',
-        icon: Icons.lock_outline_rounded,
-        suffix: IconButton(
+      decoration: InputDecoration(
+        labelText: 'Şifreniz',
+        hintText: 'Şifrenizi girin',
+        prefixIcon: const Icon(Icons.lock_outline_rounded),
+        suffixIcon: IconButton(
           onPressed: enabled ? onToggleObscure : null,
           icon: Icon(
             obscure ? Icons.visibility_off_outlined : Icons.visibility_outlined,
-            color: const Color(0xFF5E6B7A),
           ),
         ),
       ),
     );
   }
-}
-
-InputDecoration _inputDecoration({
-  required String label,
-  required String hint,
-  required IconData icon,
-  Widget? suffix,
-}) {
-  const borderColor = Color(0xFFD8E0E8);
-  return InputDecoration(
-    labelText: label,
-    hintText: hint,
-    filled: true,
-    fillColor: const Color(0xFFF8FAFC),
-    prefixIcon: Icon(icon, color: const Color(0xFF4D5A6B)),
-    suffixIcon: suffix,
-    contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 17),
-    labelStyle: const TextStyle(
-      color: Color(0xFF4F5D70),
-      fontWeight: FontWeight.w600,
-    ),
-    hintStyle: const TextStyle(
-      color: Color(0xFF97A4B3),
-      fontWeight: FontWeight.w500,
-    ),
-    enabledBorder: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(18),
-      borderSide: const BorderSide(color: borderColor),
-    ),
-    disabledBorder: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(18),
-      borderSide: const BorderSide(color: borderColor),
-    ),
-    errorBorder: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(18),
-      borderSide: const BorderSide(color: Colors.redAccent),
-    ),
-    focusedErrorBorder: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(18),
-      borderSide: const BorderSide(color: Colors.redAccent, width: 1.2),
-    ),
-    focusedBorder: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(18),
-      borderSide: const BorderSide(color: AppColors.navy800, width: 1.3),
-    ),
-  );
 }
 
 class _PrimaryLoginButton extends StatelessWidget {
@@ -628,10 +569,10 @@ class _PrimaryLoginButton extends StatelessWidget {
         onPressed: onPressed,
         style: ElevatedButton.styleFrom(
           elevation: 0,
-          backgroundColor: AppColors.navy900,
+          backgroundColor: AppColors.primaryNavy,
           foregroundColor: Colors.white,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(18),
+            borderRadius: BorderRadius.circular(16),
           ),
         ),
         child: loading
@@ -664,9 +605,9 @@ class _SecurityFootnote extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: const Color(0xFFF7F8FA),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFFE7EBF0)),
+        color: AppColors.surfaceAlt,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.border),
       ),
       child: Row(
         children: [
@@ -674,12 +615,12 @@ class _SecurityFootnote extends StatelessWidget {
             height: 34,
             width: 34,
             decoration: BoxDecoration(
-              color: AppColors.navy900.withValues(alpha: 0.08),
+              color: AppColors.primaryNavy.withValues(alpha: 0.08),
               borderRadius: BorderRadius.circular(12),
             ),
             child: const Icon(
               Icons.shield_outlined,
-              color: AppColors.navy900,
+              color: AppColors.primaryNavy,
               size: 18,
             ),
           ),
@@ -688,7 +629,7 @@ class _SecurityFootnote extends StatelessWidget {
             child: Text(
               'Verileriniz güvenli şekilde korunur. İşletme verilerinize yalnızca siz erişebilirsiniz.',
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: const Color(0xFF5F6B79),
+                    color: AppColors.textSecondary,
                     height: 1.5,
                   ),
             ),
@@ -716,14 +657,14 @@ class _InfoPill extends StatelessWidget {
       width: 208,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.surface,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFE7EBF0)),
+        border: Border.all(color: AppColors.border),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
+            color: Colors.black.withValues(alpha: 0.03),
             blurRadius: 18,
-            offset: const Offset(0, 10),
+            offset: const Offset(0, 8),
           ),
         ],
       ),
@@ -734,16 +675,16 @@ class _InfoPill extends StatelessWidget {
             height: 42,
             width: 42,
             decoration: BoxDecoration(
-              color: AppColors.navy900.withValues(alpha: 0.08),
+              color: AppColors.primaryNavySoft,
               borderRadius: BorderRadius.circular(14),
             ),
-            child: Icon(icon, color: AppColors.navy900),
+            child: Icon(icon, color: AppColors.primaryNavy),
           ),
           const SizedBox(height: 14),
           Text(
             title,
             style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                  color: AppColors.navy900,
+                  color: AppColors.textPrimary,
                   fontWeight: FontWeight.w700,
                 ),
           ),
@@ -751,7 +692,7 @@ class _InfoPill extends StatelessWidget {
           Text(
             subtitle,
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: const Color(0xFF657285),
+                  color: AppColors.textSecondary,
                   height: 1.5,
                 ),
           ),

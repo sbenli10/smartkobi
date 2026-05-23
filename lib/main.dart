@@ -25,7 +25,7 @@ class SmartKobiApp extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'SmartKOBİ',
-      theme: AppTheme.darkTheme,
+      theme: AppTheme.lightTheme,
       home: const LoginPagePremium(),
     );
   }

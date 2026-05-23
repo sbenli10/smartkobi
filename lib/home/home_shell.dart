@@ -215,41 +215,32 @@ class _HomeShellState extends State<HomeShell> {
         final sidebarExpanded = forceExpanded ? true : _sidebarExpanded;
 
         return Scaffold(
-          backgroundColor: AppColors.navy950,
-          body: Container(
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                colors: [AppColors.navy950, AppColors.navy900],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-            ),
-            child: SafeArea(
-              child: Row(
-                children: [
-                  if (useSidebar)
-                    _SmartSidebar(
-                      items: _items,
-                      groupOrder: _groupOrder,
-                      selectedIndex: _selectedIndex,
-                      expanded: sidebarExpanded,
-                      unreadNotificationCount: _unreadNotificationCount,
-                      onToggleExpanded: forceExpanded
-                          ? null
-                          : () => setState(() => _sidebarExpanded = !_sidebarExpanded),
-                      onSelect: _selectIndex,
-                    ),
-                  Expanded(
-                    child: AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 220),
-                      child: KeyedSubtree(
-                        key: ValueKey(_selectedItem.id),
-                        child: _selectedItem.page,
-                      ),
+          backgroundColor: AppColors.scaffoldBackground,
+          body: SafeArea(
+            child: Row(
+              children: [
+                if (useSidebar)
+                  _SmartSidebar(
+                    items: _items,
+                    groupOrder: _groupOrder,
+                    selectedIndex: _selectedIndex,
+                    expanded: sidebarExpanded,
+                    unreadNotificationCount: _unreadNotificationCount,
+                    onToggleExpanded: forceExpanded
+                        ? null
+                        : () => setState(() => _sidebarExpanded = !_sidebarExpanded),
+                    onSelect: _selectIndex,
+                  ),
+                Expanded(
+                  child: AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 220),
+                    child: KeyedSubtree(
+                      key: ValueKey(_selectedItem.id),
+                      child: _selectedItem.page,
                     ),
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
           bottomNavigationBar: useSidebar
@@ -361,16 +352,16 @@ class _SmartSidebar extends StatelessWidget {
     }
 
     return Container(
-      width: expanded ? 268 : 124,
+      width: expanded ? 268 : 100, // Menü daraltıldığında gereksiz genişliği azalttık
       margin: const EdgeInsets.fromLTRB(18, 18, 12, 18),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: AppColors.surface.withValues(alpha: 0.96),
+        color: AppColors.surface,
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+        border: Border.all(color: AppColors.border),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.18),
+            color: Colors.black.withValues(alpha: 0.03),
             blurRadius: 28,
             offset: const Offset(0, 16),
           ),
@@ -397,7 +388,7 @@ class _SmartSidebar extends StatelessWidget {
                           child: Text(
                             group,
                             style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                                  color: AppColors.textSecondary,
+                                  color: AppColors.textMuted,
                                   fontWeight: FontWeight.w700,
                                 ),
                           ),
@@ -447,17 +438,17 @@ class _SidebarBrand extends StatelessWidget {
           height: 46,
           width: 46,
           decoration: BoxDecoration(
-            color: AppColors.gold500,
+            color: AppColors.primaryNavy,
             borderRadius: BorderRadius.circular(14),
             boxShadow: [
               BoxShadow(
-                color: AppColors.gold500.withValues(alpha: 0.22),
+                color: AppColors.primaryNavy.withValues(alpha: 0.22),
                 blurRadius: 16,
-                offset: const Offset(0, 10),
+                offset: const Offset(0, 8),
               ),
             ],
           ),
-          child: const Icon(Icons.hub, color: AppColors.navy900),
+          child: const Icon(Icons.hub, color: Colors.white),
         ),
         if (expanded) ...[
           const SizedBox(width: 12),
@@ -469,6 +460,7 @@ class _SidebarBrand extends StatelessWidget {
                   'SmartKOBİ',
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.w800,
+                        color: AppColors.primaryNavy,
                       ),
                 ),
                 const SizedBox(height: 2),
@@ -515,8 +507,8 @@ class _SidebarNavTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final icon = selected ? item.selectedIcon : item.icon;
-    final labelColor = selected ? AppColors.textPrimary : AppColors.textSecondary;
+    final iconColor = selected ? AppColors.primaryNavy : AppColors.textSecondary;
+    final labelColor = selected ? AppColors.primaryNavy : AppColors.textSecondary;
 
     final tile = AnimatedContainer(
       duration: const Duration(milliseconds: 180),
@@ -526,19 +518,7 @@ class _SidebarNavTile extends StatelessWidget {
       ),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(16),
-        gradient: selected
-            ? LinearGradient(
-                colors: [
-                  AppColors.gold500.withValues(alpha: 0.16),
-                  AppColors.gold500.withValues(alpha: 0.06),
-                ],
-              )
-            : null,
-        border: Border.all(
-          color: selected
-              ? AppColors.gold500.withValues(alpha: 0.24)
-              : Colors.white.withValues(alpha: 0.02),
-        ),
+        color: selected ? AppColors.primaryNavy.withValues(alpha: 0.06) : Colors.transparent,
       ),
       child: Row(
         mainAxisAlignment: expanded ? MainAxisAlignment.start : MainAxisAlignment.center,
@@ -547,12 +527,12 @@ class _SidebarNavTile extends StatelessWidget {
             width: 4,
             height: 28,
             decoration: BoxDecoration(
-              color: selected ? AppColors.gold500 : Colors.transparent,
+              color: selected ? AppColors.primaryNavy : Colors.transparent,
               borderRadius: BorderRadius.circular(999),
             ),
           ),
           const SizedBox(width: 10),
-          Icon(icon, color: selected ? AppColors.gold500 : AppColors.textSecondary, size: 22),
+          Icon(selected ? item.selectedIcon : item.icon, color: iconColor, size: 22),
           if (expanded) ...[
             const SizedBox(width: 12),
             Expanded(
@@ -572,7 +552,7 @@ class _SidebarNavTile extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: AppColors.textSecondary,
+                          color: AppColors.textMuted,
                         ),
                   ),
                   if (badgeCount > 0) ...[
@@ -580,13 +560,13 @@ class _SidebarNavTile extends StatelessWidget {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
-                        color: AppColors.gold500,
+                        color: AppColors.danger,
                         borderRadius: BorderRadius.circular(999),
                       ),
                       child: Text(
                         '$badgeCount',
                         style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                              color: AppColors.navy900,
+                              color: Colors.white,
                               fontWeight: FontWeight.w800,
                             ),
                       ),
@@ -603,7 +583,7 @@ class _SidebarNavTile extends StatelessWidget {
                 width: 10,
                 height: 10,
                 decoration: const BoxDecoration(
-                  color: AppColors.gold500,
+                  color: AppColors.danger,
                   shape: BoxShape.circle,
                 ),
               ),
@@ -640,9 +620,9 @@ class _SidebarFooter extends StatelessWidget {
       width: double.infinity,
       padding: EdgeInsets.all(expanded ? 14 : 10),
       decoration: BoxDecoration(
-        color: AppColors.surfaceAlt.withValues(alpha: 0.78),
+        color: AppColors.surfaceAlt,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+        border: Border.all(color: AppColors.border),
       ),
       child: expanded
           ? Column(
@@ -650,7 +630,7 @@ class _SidebarFooter extends StatelessWidget {
               children: [
                 Text(
                   'İşletme Profili',
-                  style: Theme.of(context).textTheme.titleSmall,
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(color: AppColors.textPrimary),
                 ),
                 const SizedBox(height: 6),
                 Text(
@@ -661,7 +641,7 @@ class _SidebarFooter extends StatelessWidget {
                 ),
               ],
             )
-          : const Icon(Icons.business_center_outlined, color: AppColors.gold500),
+          : const Icon(Icons.business_center_outlined, color: AppColors.primaryNavy),
     );
   }
 }
@@ -678,20 +658,20 @@ class _SmartBottomNav extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         color: AppColors.surface,
         border: Border(
-          top: BorderSide(color: Colors.white.withValues(alpha: 0.08)),
+          top: BorderSide(color: AppColors.border),
         ),
       ),
       child: NavigationBarTheme(
         data: NavigationBarThemeData(
           backgroundColor: AppColors.surface,
-          indicatorColor: AppColors.gold500.withValues(alpha: 0.16),
+          indicatorColor: AppColors.primaryNavySoft,
           labelTextStyle: WidgetStateProperty.resolveWith(
             (states) => TextStyle(
               color: states.contains(WidgetState.selected)
-                  ? AppColors.textPrimary
+                  ? AppColors.primaryNavy
                   : AppColors.textSecondary,
               fontWeight:
                   states.contains(WidgetState.selected) ? FontWeight.w700 : FontWeight.w500,
@@ -700,7 +680,7 @@ class _SmartBottomNav extends StatelessWidget {
           iconTheme: WidgetStateProperty.resolveWith(
             (states) => IconThemeData(
               color: states.contains(WidgetState.selected)
-                  ? AppColors.gold500
+                  ? AppColors.primaryNavy
                   : AppColors.textSecondary,
             ),
           ),
@@ -774,7 +754,7 @@ class _MoreModulesSheet extends StatelessWidget {
                   width: 46,
                   height: 4,
                   decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.16),
+                    color: AppColors.border,
                     borderRadius: BorderRadius.circular(999),
                   ),
                 ),
@@ -796,7 +776,7 @@ class _MoreModulesSheet extends StatelessWidget {
                 child: ListView.separated(
                   itemCount: items.length,
                   separatorBuilder: (_, __) =>
-                      Divider(color: Colors.white.withValues(alpha: 0.06)),
+                      const Divider(color: AppColors.border),
                   itemBuilder: (context, index) {
                     final item = items[index];
                     final selected = item.id == activeItemId;
@@ -805,27 +785,32 @@ class _MoreModulesSheet extends StatelessWidget {
                         borderRadius: BorderRadius.circular(16),
                       ),
                       tileColor: selected
-                          ? AppColors.gold500.withValues(alpha: 0.14)
+                          ? AppColors.primaryNavy.withValues(alpha: 0.06)
                           : Colors.transparent,
                       leading: Icon(
                         selected ? item.selectedIcon : item.icon,
-                        color: selected ? AppColors.gold500 : AppColors.textSecondary,
+                        color: selected ? AppColors.primaryNavy : AppColors.textSecondary,
                       ),
-                      title: Text(item.label),
-                      subtitle: Text(item.description),
+                      title: Text(
+                        item.label,
+                        style: TextStyle(
+                            color: selected ? AppColors.primaryNavy : AppColors.textPrimary,
+                            fontWeight: selected ? FontWeight.bold : FontWeight.normal),
+                      ),
+                      subtitle: Text(item.description, style: const TextStyle(color: AppColors.textSecondary)),
                       trailing: selected
-                          ? const Icon(Icons.check_circle, color: AppColors.gold500)
+                          ? const Icon(Icons.check_circle, color: AppColors.primaryNavy)
                           : item.id == 'notifications' && unreadNotificationCount > 0
                               ? Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                                   decoration: BoxDecoration(
-                                    color: AppColors.gold500,
+                                    color: AppColors.danger,
                                     borderRadius: BorderRadius.circular(999),
                                   ),
                                   child: Text(
                                     '$unreadNotificationCount',
                                     style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                                          color: AppColors.navy900,
+                                          color: Colors.white,
                                           fontWeight: FontWeight.w800,
                                         ),
                                   ),

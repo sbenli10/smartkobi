@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-
+import '../receipt_scanner/receipt_scanner_page.dart';
 import '../../common/widgets/page_scaffold.dart';
 import '../../common/widgets/section_header.dart';
 import '../../common/widgets/smart_card.dart';
@@ -383,12 +383,12 @@ class _DashboardPageState extends State<DashboardPage> {
         IconButton(
           onPressed: _loading ? null : _load,
           tooltip: 'Yenile',
-          icon: const Icon(Icons.refresh),
+          icon: const Icon(Icons.refresh, color: AppColors.textPrimary),
         ),
         IconButton(
           onPressed: _logout,
           tooltip: 'Çıkış Yap',
-          icon: const Icon(Icons.logout),
+          icon: const Icon(Icons.logout, color: AppColors.textPrimary),
         ),
       ],
       child: _loading
@@ -578,9 +578,9 @@ class _TodayHero extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
             decoration: BoxDecoration(
-              color: badgeColor.withValues(alpha: 0.14),
+              color: badgeColor.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(999),
-              border: Border.all(color: badgeColor.withValues(alpha: 0.22)),
+              border: Border.all(color: badgeColor.withValues(alpha: 0.2)),
             ),
             child: Text(
               summary.overallRiskLevel,
@@ -701,11 +701,11 @@ class _DailyActionTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final riskColor = _riskColor(action.riskLevel == 'high' ? 'Acil' : 'Dikkat');
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.surfaceAlt,
+        color: AppColors.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+        border: Border.all(color: AppColors.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -716,7 +716,7 @@ class _DailyActionTile extends StatelessWidget {
                 height: 42,
                 width: 42,
                 decoration: BoxDecoration(
-                  color: riskColor.withValues(alpha: 0.14),
+                  color: riskColor.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(action.icon, color: riskColor),
@@ -741,7 +741,7 @@ class _DailyActionTile extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 12),
-          Text(action.description, style: Theme.of(context).textTheme.bodyMedium),
+          Text(action.description, style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: AppColors.textPrimary)),
           const SizedBox(height: 8),
           Text(
             action.recommendation,
@@ -752,7 +752,7 @@ class _DailyActionTile extends StatelessWidget {
           const SizedBox(height: 12),
           Align(
             alignment: Alignment.centerLeft,
-            child: ElevatedButton.icon(
+            child: OutlinedButton.icon(
               onPressed: onTap,
               icon: const Icon(Icons.arrow_forward_rounded),
               label: Text(action.actionLabel),
@@ -794,37 +794,17 @@ class _QuickDecisionCard extends StatelessWidget {
           TextField(
             controller: amountController,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            decoration: InputDecoration(
+            decoration: const InputDecoration(
               labelText: 'Tutar',
               hintText: 'Örn. 15000',
-              filled: true,
-              fillColor: AppColors.surfaceAlt,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(14),
-                borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.06)),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(14),
-                borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.06)),
-              ),
             ),
           ),
           const SizedBox(height: 12),
           TextField(
             controller: descriptionController,
-            decoration: InputDecoration(
+            decoration: const InputDecoration(
               labelText: 'Açıklama',
               hintText: 'Örn. ekipman alımı',
-              filled: true,
-              fillColor: AppColors.surfaceAlt,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(14),
-                borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.06)),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(14),
-                borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.06)),
-              ),
             ),
           ),
           const SizedBox(height: 14),
@@ -841,7 +821,7 @@ class _QuickDecisionCard extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.12),
+                color: color.withValues(alpha: 0.05),
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(color: color.withValues(alpha: 0.2)),
               ),
@@ -861,7 +841,7 @@ class _QuickDecisionCard extends StatelessWidget {
                     ],
                   ),
                   const SizedBox(height: 10),
-                  Text(result!.description),
+                  Text(result!.description, style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: AppColors.textPrimary)),
                 ],
               ),
             ),
@@ -892,10 +872,10 @@ class _FinanceStrip extends StatelessWidget {
     final items = [
       _MiniMetric('Aylık Gelir', currency.format(summary.monthlyIncome), AppColors.success),
       _MiniMetric('Aylık Gider', currency.format(summary.monthlyExpense), AppColors.danger),
-      _MiniMetric('Net Kâr/Zarar', currency.format(summary.netProfit), summary.netProfit >= 0 ? AppColors.gold400 : AppColors.warning),
+      _MiniMetric('Net Kâr/Zarar', currency.format(summary.netProfit), summary.netProfit >= 0 ? AppColors.primaryNavy : AppColors.warning),
       _MiniMetric('Tahsil Edilecek', currency.format(summary.pendingReceivables), AppColors.info),
       _MiniMetric('Ödenecek', currency.format(summary.upcomingPayments7d), AppColors.warning),
-      _MiniMetric('Nakit Skoru', '${summary.cashScore}/100', AppColors.gold500),
+      _MiniMetric('Nakit Skoru', '${summary.cashScore}/100', AppColors.primaryNavy),
     ];
 
     return SmartCard(
@@ -1149,6 +1129,11 @@ class _QuickActionsCard extends StatelessWidget {
       _QuickActionItem('Nakit Kaydı Ekle', Icons.waterfall_chart_outlined, onCashflow),
       _QuickActionItem('Belge Yükle', Icons.upload_file_outlined, onDocuments),
       _QuickActionItem('AI Danışmana Sor', Icons.smart_toy_outlined, onAdvisor),
+      _QuickActionItem(
+        'Fiş/Fatura Tara', 
+        Icons.document_scanner_outlined, 
+        () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ReceiptScannerPage())),
+      ),
     ];
 
     return SmartCard(
@@ -1173,7 +1158,7 @@ class _QuickActionsCard extends StatelessWidget {
                         width: itemWidth,
                         child: OutlinedButton.icon(
                           onPressed: item.onTap,
-                          icon: Icon(item.icon, color: AppColors.gold500),
+                          icon: Icon(item.icon, color: AppColors.primaryNavy),
                           label: Text(item.label),
                         ),
                       ),
@@ -1222,6 +1207,7 @@ class _ReportsOverviewCard extends StatelessWidget {
                     ? latestReportSummary!
                     : 'Son oluşturulan raporun özeti burada görünür.')
                 : 'KOBİ Sağlık Raporu oluşturarak işletmenizin genel durumunu tek çıktıda görebilirsiniz.',
+            style: const TextStyle(color: AppColors.textSecondary),
           ),
           const SizedBox(height: 14),
           Wrap(
@@ -1282,6 +1268,7 @@ class _NotificationsOverviewCard extends StatelessWidget {
             summary.criticalCount > 0
                 ? 'Kritik bildirimleriniz var. Öncelikle tahsilat, belge ve nakit uyarılarını kontrol edin.'
                 : 'SmartKOBİ, önemli tahsilat, ödeme, stok ve belge uyarılarını burada özetler.',
+            style: const TextStyle(color: AppColors.textSecondary),
           ),
           const SizedBox(height: 12),
           if (latestItems.isEmpty)
@@ -1290,6 +1277,7 @@ class _NotificationsOverviewCard extends StatelessWidget {
               decoration: BoxDecoration(
                 color: AppColors.surfaceAlt,
                 borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: AppColors.border),
               ),
               child: const Text('Yeni hatırlatma üretildiğinde burada son bildirimleriniz görünecek.'),
             )
@@ -1302,13 +1290,14 @@ class _NotificationsOverviewCard extends StatelessWidget {
                   decoration: BoxDecoration(
                     color: AppColors.surfaceAlt,
                     borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: AppColors.border),
                   ),
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Icon(
                         item.isCritical ? Icons.priority_high : Icons.notifications_outlined,
-                        color: item.isCritical ? AppColors.danger : AppColors.gold500,
+                        color: item.isCritical ? AppColors.danger : AppColors.primaryNavy,
                       ),
                       const SizedBox(width: 10),
                       Expanded(
@@ -1321,6 +1310,7 @@ class _NotificationsOverviewCard extends StatelessWidget {
                               item.message,
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
+                              style: Theme.of(context).textTheme.bodyMedium,
                             ),
                           ],
                         ),
@@ -1335,7 +1325,7 @@ class _NotificationsOverviewCard extends StatelessWidget {
             spacing: 10,
             runSpacing: 10,
             children: [
-              ElevatedButton.icon(
+              OutlinedButton.icon(
                 onPressed: onOpenNotifications,
                 icon: const Icon(Icons.notifications_outlined),
                 label: const Text('Bildirimleri Gör'),
@@ -1382,7 +1372,7 @@ class _CompactInfoCard extends StatelessWidget {
                 height: 40,
                 width: 40,
                 decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.14),
+                  color: color.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(icon, color: color),
@@ -1424,6 +1414,7 @@ class _MiniMetric extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.surfaceAlt,
         borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1465,6 +1456,7 @@ class _TinyStateBox extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.surfaceAlt,
         borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1492,9 +1484,9 @@ class _RiskBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.14),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: color.withValues(alpha: 0.24)),
+        border: Border.all(color: color.withValues(alpha: 0.2)),
       ),
       child: Text(
         label,
@@ -1637,6 +1629,6 @@ Color _riskColor(String riskLevel) {
     case 'low':
       return AppColors.success;
     default:
-      return AppColors.gold500;
+      return AppColors.primaryNavy;
   }
 }
