@@ -1,15 +1,21 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 
-import '../features/dashboard/dashboard_page.dart';
-import '../features/transactions/transactions_page.dart';
-import '../features/customers/customers_page.dart';
-import '../features/inventory/inventory_page.dart';
-import '../features/kpi/kpi_page.dart';
+import '../core/theme/app_colors.dart';
+import '../features/ai/ai_chat_page.dart';
 import '../features/ai/ai_page.dart';
 import '../features/ai/cashflow_page.dart';
-import '../features/ai/ai_chat_page.dart';
-
+import '../features/business_profile/business_profile_page.dart';
+import '../features/customers/customers_page.dart';
+import '../features/dashboard/dashboard_page.dart';
+import '../features/documents/documents_page.dart';
+import '../features/inventory/inventory_page.dart';
+import '../features/kpi/kpi_page.dart';
+import '../features/notifications/notifications_page.dart';
+import '../features/reports/reports_page.dart';
+import '../features/settings/settings_page.dart';
+import '../features/support/support_analysis_page.dart';
+import '../features/transactions/transactions_page.dart';
+import '../data/repositories/notifications_repository.dart';
 
 class HomeShell extends StatefulWidget {
   const HomeShell({super.key});
@@ -18,319 +24,819 @@ class HomeShell extends StatefulWidget {
   State<HomeShell> createState() => _HomeShellState();
 }
 
-class _HomeShellState extends State<HomeShell> with TickerProviderStateMixin {
-  int _index = 0;
+class _HomeShellState extends State<HomeShell> {
+  int _selectedIndex = 0;
+  bool _sidebarExpanded = true;
+  final _notificationsRepository = NotificationsRepository();
+  int _unreadNotificationCount = 0;
 
-  final List<Widget> _pages = [
-    DashboardPage(),
-    TransactionsPage(),
-    CustomersPage(),
-    InventoryPage(),
-    KpiPage(),
-    AiPage(),
-    CashflowPage(),
-    AiChatPage(), // ✅ BURAYA EKLE
+  late final List<SmartKobiNavItem> _items;
+
+  late final List<String> _groupOrder = const [
+    'Genel',
+    'İşletme',
+    'Akıllı Asistan',
+    'Büyüme',
+    'Yönetim',
   ];
 
-
-
-
-
-  late final AnimationController _fadeCtrl = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 260),
-  )..forward();
-
-  @override
-  void didUpdateWidget(covariant HomeShell oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    _fadeCtrl.forward(from: 0);
+  List<SmartKobiNavItem> _buildItems() {
+    return [
+      const SmartKobiNavItem(
+        id: 'dashboard',
+        label: 'Ana Sayfa',
+        description: 'İşletmenizin genel özeti ve hızlı aksiyonlar',
+        icon: Icons.dashboard_outlined,
+        selectedIcon: Icons.dashboard,
+        page: DashboardPage(),
+        group: 'Genel',
+        showInBottomNav: true,
+      ),
+      const SmartKobiNavItem(
+        id: 'kpi',
+        label: 'KPI',
+        description: 'Temel performans göstergeleri',
+        icon: Icons.query_stats_outlined,
+        selectedIcon: Icons.query_stats,
+        page: KpiPage(),
+        group: 'Genel',
+      ),
+      const SmartKobiNavItem(
+        id: 'reports',
+        label: 'Raporlar',
+        description: 'Finansal ve operasyonel özetler',
+        icon: Icons.assessment_outlined,
+        selectedIcon: Icons.assessment,
+        page: ReportsPage(),
+        group: 'Genel',
+      ),
+      SmartKobiNavItem(
+        id: 'notifications',
+        label: 'Bildirimler',
+        description: 'Akıllı hatırlatmalar ve önemli uyarılar',
+        icon: Icons.notifications_outlined,
+        selectedIcon: Icons.notifications,
+        page: NotificationsPage(
+          onUnreadCountChanged: _handleUnreadCountChanged,
+          onNavigateToRoute: _openModuleFromNotification,
+        ),
+        group: 'Yönetim',
+      ),
+      const SmartKobiNavItem(
+        id: 'finance',
+        label: 'Finans',
+        description: 'Gelir, gider ve işlem kayıtları',
+        icon: Icons.account_balance_wallet_outlined,
+        selectedIcon: Icons.account_balance_wallet,
+        page: TransactionsPage(),
+        group: 'İşletme',
+        showInBottomNav: true,
+      ),
+      const SmartKobiNavItem(
+        id: 'customers',
+        label: 'Cari',
+        description: 'Müşteri ve tahsilat yönetimi',
+        icon: Icons.people_outline,
+        selectedIcon: Icons.people,
+        page: CustomersPage(),
+        group: 'İşletme',
+        showInBottomNav: true,
+      ),
+      const SmartKobiNavItem(
+        id: 'inventory',
+        label: 'Stok',
+        description: 'Ürünler, hareketler ve kritik stok',
+        icon: Icons.inventory_2_outlined,
+        selectedIcon: Icons.inventory_2,
+        page: InventoryPage(),
+        group: 'İşletme',
+        showInBottomNav: true,
+      ),
+      const SmartKobiNavItem(
+        id: 'cashflow',
+        label: 'Nakit AI',
+        description: '30/60 günlük nakit tahmini ve risk analizi',
+        icon: Icons.waterfall_chart_outlined,
+        selectedIcon: Icons.waterfall_chart,
+        page: CashflowPage(),
+        group: 'İşletme',
+      ),
+      const SmartKobiNavItem(
+        id: 'advisor',
+        label: 'AI Danışman',
+        description: 'İşletme verilerine göre kısa danışmanlık',
+        icon: Icons.smart_toy_outlined,
+        selectedIcon: Icons.smart_toy,
+        page: AiChatPage(),
+        group: 'Akıllı Asistan',
+      ),
+      const SmartKobiNavItem(
+        id: 'ai-analytics',
+        label: 'AI Analizler',
+        description: 'Ek analizler ve veri yorumları',
+        icon: Icons.insights_outlined,
+        selectedIcon: Icons.insights,
+        page: AiPage(),
+        group: 'Akıllı Asistan',
+      ),
+      const SmartKobiNavItem(
+        id: 'support',
+        label: 'Destek Analizi',
+        description: 'KOSGEB, ihracat ve finansman ön uygunluk analizi',
+        icon: Icons.workspace_premium_outlined,
+        selectedIcon: Icons.workspace_premium,
+        page: SupportAnalysisPage(),
+        group: 'Büyüme',
+      ),
+      const SmartKobiNavItem(
+        id: 'documents',
+        label: 'Belgeler',
+        description: 'Hazırlanacak ve takip edilecek belge listeleri',
+        icon: Icons.folder_open_outlined,
+        selectedIcon: Icons.folder_open,
+        page: DocumentsPage(),
+        group: 'Büyüme',
+      ),
+      const SmartKobiNavItem(
+        id: 'business-profile',
+        label: 'İşletme Profili',
+        description: 'KOBİ kimlik kartı ve profil tamamlama',
+        icon: Icons.business_center_outlined,
+        selectedIcon: Icons.business_center,
+        page: BusinessProfilePage(),
+        group: 'Yönetim',
+      ),
+      const SmartKobiNavItem(
+        id: 'settings',
+        label: 'Ayarlar',
+        description: 'Uygulama ve hesap tercihleri',
+        icon: Icons.settings_outlined,
+        selectedIcon: Icons.settings,
+        page: SettingsPage(),
+        group: 'Yönetim',
+      ),
+    ];
   }
 
+  List<SmartKobiNavItem> get _primaryMobileItems =>
+      _items.where((item) => item.showInBottomNav).toList();
+
+  List<SmartKobiNavItem> get _moreMobileItems =>
+      [
+        'cashflow',
+        'advisor',
+        'support',
+        'notifications',
+        'business-profile',
+        'documents',
+        'reports',
+        'kpi',
+        'ai-analytics',
+        'settings',
+      ]
+          .map((id) => _items.firstWhere((item) => item.id == id))
+          .toList();
+
+  SmartKobiNavItem get _selectedItem => _items[_selectedIndex];
+
   @override
-  void dispose() {
-    _fadeCtrl.dispose();
-    super.dispose();
+  void initState() {
+    super.initState();
+    _items = _buildItems();
+    _loadUnreadCount();
   }
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-
     return LayoutBuilder(
       builder: (context, constraints) {
-        final w = constraints.maxWidth;
-
-        // Breakpoints: phone < 840, tablet/desktop >= 840
-        final bool wide = w >= 840;
+        final useSidebar = constraints.maxWidth >= 900;
+        final forceExpanded = constraints.maxWidth >= 1280;
+        final sidebarExpanded = forceExpanded ? true : _sidebarExpanded;
 
         return Scaffold(
-          extendBody: true,
-          body: Stack(
-            children: [
-              // ✅ Enterprise gradient background
-              _EnterpriseBackground(wide: wide),
-
-              SafeArea(
-                child: Row(
-                  children: [
-                    if (wide) _EnterpriseRail(
-                      selectedIndex: _index,
-                      onSelect: (i) => setState(() => _index = i),
+          backgroundColor: AppColors.navy950,
+          body: Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                colors: [AppColors.navy950, AppColors.navy900],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+            ),
+            child: SafeArea(
+              child: Row(
+                children: [
+                  if (useSidebar)
+                    _SmartSidebar(
+                      items: _items,
+                      groupOrder: _groupOrder,
+                      selectedIndex: _selectedIndex,
+                      expanded: sidebarExpanded,
+                      unreadNotificationCount: _unreadNotificationCount,
+                      onToggleExpanded: forceExpanded
+                          ? null
+                          : () => setState(() => _sidebarExpanded = !_sidebarExpanded),
+                      onSelect: _selectIndex,
                     ),
-
-                    Expanded(
-                      child: Padding(
-                        padding: EdgeInsets.fromLTRB(
-                          wide ? 16 : 12,
-                          12,
-                          wide ? 20 : 12,
-                          wide ? 12 : 96, // bottom bar için boşluk
-                        ),
-                        child: _EnterpriseCardShell(
-                          child: FadeTransition(
-                            opacity: CurvedAnimation(parent: _fadeCtrl, curve: Curves.easeOut),
-                            child: IndexedStack(
-                              index: _index,
-                              children: _pages,
-                            ),
-                          ),
-                        ),
+                  Expanded(
+                    child: AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 220),
+                      child: KeyedSubtree(
+                        key: ValueKey(_selectedItem.id),
+                        child: _selectedItem.page,
                       ),
                     ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-
-          // ✅ Phone/compact: glass bottom bar
-          bottomNavigationBar: wide
-              ? null
-              : Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 18),
-                  child: _GlassBottomBar(
-                    selectedIndex: _index,
-                    onSelect: (i) => setState(() => _index = i),
-                    accent: cs.primary,
                   ),
+                ],
+              ),
+            ),
+          ),
+          bottomNavigationBar: useSidebar
+              ? null
+              : _SmartBottomNav(
+                  currentIndex: _mobileCurrentIndex,
+                  onSelect: (value) {
+                    if (value == 4) {
+                      _openMoreModulesSheet(context);
+                      return;
+                    }
+                    final item = _primaryMobileItems[value];
+                    _selectIndex(_items.indexOf(item));
+                  },
                 ),
         );
       },
     );
   }
+
+  int get _mobileCurrentIndex {
+    final primaryIndex =
+        _primaryMobileItems.indexWhere((item) => item.id == _selectedItem.id);
+    return primaryIndex >= 0 ? primaryIndex : 4;
+  }
+
+  Future<void> _openMoreModulesSheet(BuildContext context) async {
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (context) {
+        return _MoreModulesSheet(
+          items: _moreMobileItems,
+          activeItemId: _selectedItem.id,
+          unreadNotificationCount: _unreadNotificationCount,
+          onSelect: (item) {
+            Navigator.pop(context);
+            _selectIndex(_items.indexOf(item));
+          },
+        );
+      },
+    );
+  }
+
+  void _selectIndex(int index) {
+    if (_selectedIndex == index) {
+      return;
+    }
+    setState(() => _selectedIndex = index);
+    _loadUnreadCount();
+  }
+
+  Future<void> _loadUnreadCount() async {
+    try {
+      final count = await _notificationsRepository.getUnreadCount();
+      if (!mounted) {
+        return;
+      }
+      setState(() => _unreadNotificationCount = count);
+    } catch (_) {}
+  }
+
+  void _handleUnreadCountChanged(int count) {
+    if (!mounted) {
+      return;
+    }
+    setState(() => _unreadNotificationCount = count);
+  }
+
+  void _openModuleFromNotification(String route) {
+    final normalizedRoute = route == 'business_profile' ? 'business-profile' : route;
+    final targetIndex = _items.indexWhere((item) => item.id == normalizedRoute);
+    if (targetIndex >= 0) {
+      _selectIndex(targetIndex);
+      return;
+    }
+
+    if (normalizedRoute == 'dashboard') {
+      _selectIndex(0);
+    }
+  }
 }
 
-class _EnterpriseBackground extends StatelessWidget {
-  const _EnterpriseBackground({required this.wide});
-  final bool wide;
+class _SmartSidebar extends StatelessWidget {
+  const _SmartSidebar({
+    required this.items,
+    required this.groupOrder,
+    required this.selectedIndex,
+    required this.expanded,
+    required this.unreadNotificationCount,
+    required this.onSelect,
+    this.onToggleExpanded,
+  });
+
+  final List<SmartKobiNavItem> items;
+  final List<String> groupOrder;
+  final int selectedIndex;
+  final bool expanded;
+  final int unreadNotificationCount;
+  final ValueChanged<int> onSelect;
+  final VoidCallback? onToggleExpanded;
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    // Kurumsal, “fintech” hissi veren soft gradient + vignette
-    final top = isDark ? const Color(0xFF0B1220) : const Color(0xFFF6F7FB);
-    final mid = isDark ? const Color(0xFF0E1A33) : const Color(0xFFEFF3FF);
-    final glow = isDark ? const Color(0xFF1D4ED8) : const Color(0xFF93C5FD);
+    final grouped = <String, List<MapEntry<int, SmartKobiNavItem>>>{};
+    for (var i = 0; i < items.length; i++) {
+      grouped.putIfAbsent(items[i].group, () => []).add(MapEntry(i, items[i]));
+    }
 
     return Container(
+      width: expanded ? 268 : 124,
+      margin: const EdgeInsets.fromLTRB(18, 18, 12, 18),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [top, mid],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
+        color: AppColors.surface.withValues(alpha: 0.96),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.18),
+            blurRadius: 28,
+            offset: const Offset(0, 16),
+          ),
+        ],
       ),
-      child: Stack(
+      child: Column(
         children: [
-          // “glow blobs”
-          Positioned(
-            top: -80,
-            left: -60,
-            child: _GlowBlob(color: glow.withOpacity(isDark ? 0.22 : 0.28), size: wide ? 320 : 260),
+          _SidebarBrand(
+            expanded: expanded,
+            onToggleExpanded: onToggleExpanded,
           ),
-          Positioned(
-            bottom: -120,
-            right: -90,
-            child: _GlowBlob(color: glow.withOpacity(isDark ? 0.18 : 0.22), size: wide ? 360 : 280),
-          ),
-          // subtle vignette
-          Positioned.fill(
-            child: Container(
-              decoration: BoxDecoration(
-                gradient: RadialGradient(
-                  colors: [
-                    Colors.transparent,
-                    (isDark ? Colors.black : Colors.black).withOpacity(isDark ? 0.35 : 0.10),
-                  ],
-                  radius: 1.1,
-                  center: const Alignment(0.0, -0.2),
-                ),
+          const SizedBox(height: 18),
+          Expanded(
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment:
+                    expanded ? CrossAxisAlignment.start : CrossAxisAlignment.center,
+                children: [
+                  for (final group in groupOrder)
+                    if ((grouped[group] ?? const []).isNotEmpty) ...[
+                      if (expanded)
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(8, 10, 8, 8),
+                          child: Text(
+                            group,
+                            style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                                  color: AppColors.textSecondary,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                          ),
+                        ),
+                      ...grouped[group]!.map(
+                        (entry) => Padding(
+                          padding: const EdgeInsets.only(bottom: 8),
+                          child: _SidebarNavTile(
+                            item: entry.value,
+                            index: entry.key,
+                            selected: entry.key == selectedIndex,
+                            expanded: expanded,
+                            badgeCount:
+                                entry.value.id == 'notifications' ? unreadNotificationCount : 0,
+                            onTap: () => onSelect(entry.key),
+                          ),
+                        ),
+                      ),
+                    ],
+                ],
               ),
             ),
           ),
+          const SizedBox(height: 10),
+          _SidebarFooter(expanded: expanded),
         ],
       ),
     );
   }
 }
 
-class _GlowBlob extends StatelessWidget {
-  const _GlowBlob({required this.color, required this.size});
-  final Color color;
-  final double size;
-
-  @override
-  Widget build(BuildContext context) {
-    return IgnorePointer(
-      child: Container(
-        width: size,
-        height: size,
-        decoration: BoxDecoration(
-          color: color,
-          shape: BoxShape.circle,
-        ),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 40, sigmaY: 40),
-          child: const SizedBox.expand(),
-        ),
-      ),
-    );
-  }
-}
-
-/// ✅ Enterprise content shell: card + stroke + blur hint
-class _EnterpriseCardShell extends StatelessWidget {
-  const _EnterpriseCardShell({required this.child});
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(22),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
-        child: Container(
-          decoration: BoxDecoration(
-            color: (isDark ? const Color(0xFF0F1A2E) : Colors.white).withOpacity(isDark ? 0.55 : 0.72),
-            borderRadius: BorderRadius.circular(22),
-            border: Border.all(
-              color: (isDark ? Colors.white : Colors.black).withOpacity(isDark ? 0.10 : 0.06),
-              width: 1,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(isDark ? 0.35 : 0.10),
-                blurRadius: 26,
-                offset: const Offset(0, 14),
-              )
-            ],
-          ),
-          child: child,
-        ),
-      ),
-    );
-  }
-}
-
-/// ✅ Tablet/Desktop: NavigationRail (ERP tarzı)
-class _EnterpriseRail extends StatelessWidget {
-  const _EnterpriseRail({
-    required this.selectedIndex,
-    required this.onSelect,
+class _SidebarBrand extends StatelessWidget {
+  const _SidebarBrand({
+    required this.expanded,
+    this.onToggleExpanded,
   });
 
-  final int selectedIndex;
-  final ValueChanged<int> onSelect;
+  final bool expanded;
+  final VoidCallback? onToggleExpanded;
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 12, 8, 12),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(22),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
-          child: Container(
-            width: 96,
-            decoration: BoxDecoration(
-              color: (isDark ? const Color(0xFF0F1A2E) : Colors.white).withOpacity(isDark ? 0.50 : 0.70),
-              border: Border.all(
-                color: (isDark ? Colors.white : Colors.black).withOpacity(isDark ? 0.10 : 0.06),
+    return Row(
+      mainAxisAlignment: expanded ? MainAxisAlignment.start : MainAxisAlignment.center,
+      children: [
+        Container(
+          height: 46,
+          width: 46,
+          decoration: BoxDecoration(
+            color: AppColors.gold500,
+            borderRadius: BorderRadius.circular(14),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.gold500.withValues(alpha: 0.22),
+                blurRadius: 16,
+                offset: const Offset(0, 10),
               ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(isDark ? 0.30 : 0.10),
-                  blurRadius: 24,
-                  offset: const Offset(0, 12),
-                )
+            ],
+          ),
+          child: const Icon(Icons.hub, color: AppColors.navy900),
+        ),
+        if (expanded) ...[
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'SmartKOBİ',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w800,
+                      ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'Dijital İş Ortağınız',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
+                ),
               ],
             ),
-            child: NavigationRail(
-              selectedIndex: selectedIndex,
-              onDestinationSelected: onSelect,
-              labelType: NavigationRailLabelType.all,
-              backgroundColor: Colors.transparent,
-              selectedIconTheme: IconThemeData(color: cs.primary),
-              selectedLabelTextStyle: TextStyle(
-                color: cs.primary,
-                fontWeight: FontWeight.w700,
-              ),
-              unselectedIconTheme: IconThemeData(color: cs.onSurface.withOpacity(0.65)),
-              unselectedLabelTextStyle: TextStyle(
-                color: cs.onSurface.withOpacity(0.65),
-                fontWeight: FontWeight.w600,
-              ),
-              destinations: const [
-                NavigationRailDestination(
-                    icon: Icon(Icons.dashboard_outlined),
-                    selectedIcon: Icon(Icons.dashboard),
-                    label: Text("Dashboard"),
-                ),
-                NavigationRailDestination(
-                    icon: Icon(Icons.account_balance_wallet_outlined),
-                    selectedIcon: Icon(Icons.account_balance_wallet),
-                    label: Text("Gelir-Gider"),
-                ),
-                NavigationRailDestination(
-                    icon: Icon(Icons.people_outline),
-                    selectedIcon: Icon(Icons.people),
-                    label: Text("Müşteriler"),
-                ),
-                NavigationRailDestination(
-                    icon: Icon(Icons.inventory_2_outlined),
-                    selectedIcon: Icon(Icons.inventory),
-                    label: Text("Stok"),
-                ),
-                NavigationRailDestination(
-                    icon: Icon(Icons.insights_outlined),
-                    selectedIcon: Icon(Icons.insights),
-                    label: Text("KPI"),
-                ),
-                NavigationRailDestination( // ✅ yeni
-                    icon: Icon(Icons.smart_toy_outlined),
-                    selectedIcon: Icon(Icons.smart_toy),
-                    label: Text("AI"),
-                ),
-                NavigationRailDestination(
-                  icon: Icon(Icons.trending_up_outlined),
-                  selectedIcon: Icon(Icons.trending_up),
-                  label: Text("Nakit AI"),
-                ),
-                NavigationRailDestination(
-                  icon: Icon(Icons.chat_bubble_outline),
-                  selectedIcon: Icon(Icons.chat_bubble),
-                  label: Text("AI Chat"),
-                ),
-                ],
-
+          ),
+        ],
+        if (onToggleExpanded != null)
+          IconButton(
+            tooltip: expanded ? 'Menüyü daralt' : 'Menüyü genişlet',
+            onPressed: onToggleExpanded,
+            icon: Icon(
+              expanded ? Icons.first_page_rounded : Icons.last_page_rounded,
+              color: AppColors.textSecondary,
             ),
+          ),
+      ],
+    );
+  }
+}
+
+class _SidebarNavTile extends StatelessWidget {
+  const _SidebarNavTile({
+    required this.item,
+    required this.index,
+    required this.selected,
+    required this.expanded,
+    required this.badgeCount,
+    required this.onTap,
+  });
+
+  final SmartKobiNavItem item;
+  final int index;
+  final bool selected;
+  final bool expanded;
+  final int badgeCount;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final icon = selected ? item.selectedIcon : item.icon;
+    final labelColor = selected ? AppColors.textPrimary : AppColors.textSecondary;
+
+    final tile = AnimatedContainer(
+      duration: const Duration(milliseconds: 180),
+      padding: EdgeInsets.symmetric(
+        horizontal: expanded ? 14 : 0,
+        vertical: 12,
+      ),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        gradient: selected
+            ? LinearGradient(
+                colors: [
+                  AppColors.gold500.withValues(alpha: 0.16),
+                  AppColors.gold500.withValues(alpha: 0.06),
+                ],
+              )
+            : null,
+        border: Border.all(
+          color: selected
+              ? AppColors.gold500.withValues(alpha: 0.24)
+              : Colors.white.withValues(alpha: 0.02),
+        ),
+      ),
+      child: Row(
+        mainAxisAlignment: expanded ? MainAxisAlignment.start : MainAxisAlignment.center,
+        children: [
+          Container(
+            width: 4,
+            height: 28,
+            decoration: BoxDecoration(
+              color: selected ? AppColors.gold500 : Colors.transparent,
+              borderRadius: BorderRadius.circular(999),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Icon(icon, color: selected ? AppColors.gold500 : AppColors.textSecondary, size: 22),
+          if (expanded) ...[
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    item.label,
+                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                          color: labelColor,
+                          fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
+                        ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    item.description,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: AppColors.textSecondary,
+                        ),
+                  ),
+                  if (badgeCount > 0) ...[
+                    const SizedBox(height: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: AppColors.gold500,
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: Text(
+                        '$badgeCount',
+                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                              color: AppColors.navy900,
+                              fontWeight: FontWeight.w800,
+                            ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
+          if (!expanded && badgeCount > 0)
+            Padding(
+              padding: const EdgeInsets.only(left: 6),
+              child: Container(
+                width: 10,
+                height: 10,
+                decoration: const BoxDecoration(
+                  color: AppColors.gold500,
+                  shape: BoxShape.circle,
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+
+    return Semantics(
+      selected: selected,
+      button: true,
+      label: item.label,
+      child: Tooltip(
+        message: item.label,
+        waitDuration: const Duration(milliseconds: 400),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(16),
+          child: tile,
+        ),
+      ),
+    );
+  }
+}
+
+class _SidebarFooter extends StatelessWidget {
+  const _SidebarFooter({required this.expanded});
+
+  final bool expanded;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.all(expanded ? 14 : 10),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceAlt.withValues(alpha: 0.78),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+      ),
+      child: expanded
+          ? Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'İşletme Profili',
+                  style: Theme.of(context).textTheme.titleSmall,
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'Profilinizi tamamladıkça analizler daha net hale gelir.',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
+                ),
+              ],
+            )
+          : const Icon(Icons.business_center_outlined, color: AppColors.gold500),
+    );
+  }
+}
+
+class _SmartBottomNav extends StatelessWidget {
+  const _SmartBottomNav({
+    required this.currentIndex,
+    required this.onSelect,
+  });
+
+  final int currentIndex;
+  final ValueChanged<int> onSelect;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        border: Border(
+          top: BorderSide(color: Colors.white.withValues(alpha: 0.08)),
+        ),
+      ),
+      child: NavigationBarTheme(
+        data: NavigationBarThemeData(
+          backgroundColor: AppColors.surface,
+          indicatorColor: AppColors.gold500.withValues(alpha: 0.16),
+          labelTextStyle: WidgetStateProperty.resolveWith(
+            (states) => TextStyle(
+              color: states.contains(WidgetState.selected)
+                  ? AppColors.textPrimary
+                  : AppColors.textSecondary,
+              fontWeight:
+                  states.contains(WidgetState.selected) ? FontWeight.w700 : FontWeight.w500,
+            ),
+          ),
+          iconTheme: WidgetStateProperty.resolveWith(
+            (states) => IconThemeData(
+              color: states.contains(WidgetState.selected)
+                  ? AppColors.gold500
+                  : AppColors.textSecondary,
+            ),
+          ),
+        ),
+        child: NavigationBar(
+          selectedIndex: currentIndex,
+          onDestinationSelected: onSelect,
+          height: 72,
+          destinations: const [
+            NavigationDestination(
+              icon: Icon(Icons.dashboard_outlined),
+              selectedIcon: Icon(Icons.dashboard),
+              label: 'Ana Sayfa',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.account_balance_wallet_outlined),
+              selectedIcon: Icon(Icons.account_balance_wallet),
+              label: 'Finans',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.people_outline),
+              selectedIcon: Icon(Icons.people),
+              label: 'Cari',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.inventory_2_outlined),
+              selectedIcon: Icon(Icons.inventory_2),
+              label: 'Stok',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.grid_view_outlined),
+              selectedIcon: Icon(Icons.grid_view_rounded),
+              label: 'Diğer',
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _MoreModulesSheet extends StatelessWidget {
+  const _MoreModulesSheet({
+    required this.items,
+    required this.activeItemId,
+    required this.unreadNotificationCount,
+    required this.onSelect,
+  });
+
+  final List<SmartKobiNavItem> items;
+  final String activeItemId;
+  final int unreadNotificationCount;
+  final ValueChanged<SmartKobiNavItem> onSelect;
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: Container(
+        constraints: const BoxConstraints(maxHeight: 620),
+        decoration: const BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(18, 12, 18, 24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 46,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.16),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 18),
+              Text(
+                'Diğer Modüller',
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'Nakit AI, destekler, raporlar ve yönetim modüllerine buradan geçin.',
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
+              ),
+              const SizedBox(height: 16),
+              Expanded(
+                child: ListView.separated(
+                  itemCount: items.length,
+                  separatorBuilder: (_, __) =>
+                      Divider(color: Colors.white.withValues(alpha: 0.06)),
+                  itemBuilder: (context, index) {
+                    final item = items[index];
+                    final selected = item.id == activeItemId;
+                    return ListTile(
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      tileColor: selected
+                          ? AppColors.gold500.withValues(alpha: 0.14)
+                          : Colors.transparent,
+                      leading: Icon(
+                        selected ? item.selectedIcon : item.icon,
+                        color: selected ? AppColors.gold500 : AppColors.textSecondary,
+                      ),
+                      title: Text(item.label),
+                      subtitle: Text(item.description),
+                      trailing: selected
+                          ? const Icon(Icons.check_circle, color: AppColors.gold500)
+                          : item.id == 'notifications' && unreadNotificationCount > 0
+                              ? Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.gold500,
+                                    borderRadius: BorderRadius.circular(999),
+                                  ),
+                                  child: Text(
+                                    '$unreadNotificationCount',
+                                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                                          color: AppColors.navy900,
+                                          fontWeight: FontWeight.w800,
+                                        ),
+                                  ),
+                                )
+                              : null,
+                      onTap: () => onSelect(item),
+                    );
+                  },
+                ),
+              ),
+            ],
           ),
         ),
       ),
@@ -338,103 +844,24 @@ class _EnterpriseRail extends StatelessWidget {
   }
 }
 
-/// ✅ Phone: Glassmorphism BottomBar (ERP/Fintech premium)
-class _GlassBottomBar extends StatelessWidget {
-  const _GlassBottomBar({
-    required this.selectedIndex,
-    required this.onSelect,
-    required this.accent,
+class SmartKobiNavItem {
+  const SmartKobiNavItem({
+    required this.id,
+    required this.label,
+    required this.description,
+    required this.icon,
+    required this.selectedIcon,
+    required this.page,
+    required this.group,
+    this.showInBottomNav = false,
   });
 
-  final int selectedIndex;
-  final ValueChanged<int> onSelect;
-  final Color accent;
-
- static const _items = <({IconData icon, String label})>[
-  (icon: Icons.dashboard, label: "Dashboard"),
-  (icon: Icons.account_balance_wallet, label: "Gelir-Gider"),
-  (icon: Icons.people, label: "Müşteriler"),
-  (icon: Icons.inventory, label: "Stok"),
-  (icon: Icons.insights, label: "KPI"),
-  (icon: Icons.smart_toy, label: "AI"),
-  (icon: Icons.trending_up, label: "Nakit AI"),
-  (icon: Icons.chat_bubble, label: "AI Chat"), // ✅ EKLE
-];
-
-
-
-
-  @override
-  Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(24),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
-        child: Container(
-          height: 74,
-          decoration: BoxDecoration(
-            color: (isDark ? const Color(0xFF0B1220) : Colors.white).withOpacity(isDark ? 0.55 : 0.70),
-            border: Border.all(
-              color: (isDark ? Colors.white : Colors.black).withOpacity(isDark ? 0.12 : 0.07),
-              width: 1,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(isDark ? 0.35 : 0.12),
-                blurRadius: 26,
-                offset: const Offset(0, 14),
-              )
-            ],
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: List.generate(_items.length, (i) {
-              final selected = selectedIndex == i;
-              final item = _items[i];
-
-              return InkWell(
-                onTap: () => onSelect(i),
-                borderRadius: BorderRadius.circular(18),
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 260),
-                  curve: Curves.easeOutCubic,
-                  padding: EdgeInsets.symmetric(
-                    horizontal: selected ? 14 : 10,
-                    vertical: 10,
-                  ),
-                  decoration: BoxDecoration(
-                    color: selected ? accent.withOpacity(isDark ? 0.35 : 0.16) : Colors.transparent,
-                    borderRadius: BorderRadius.circular(18),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(
-                        item.icon,
-                        size: 22,
-                        color: selected
-                            ? accent
-                            : Theme.of(context).colorScheme.onSurface.withOpacity(0.70),
-                      ),
-                      if (selected) ...[
-                        const SizedBox(width: 8),
-                        Text(
-                          item.label,
-                          style: TextStyle(
-                            color: Theme.of(context).colorScheme.onSurface,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-              );
-            }),
-          ),
-        ),
-      ),
-    );
-  }
+  final String id;
+  final String label;
+  final String description;
+  final IconData icon;
+  final IconData selectedIcon;
+  final Widget page;
+  final String group;
+  final bool showInBottomNav;
 }

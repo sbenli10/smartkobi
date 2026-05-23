@@ -1,8 +1,12 @@
-// lib/features/ai/ai_page.dart
-
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/intl.dart';
+
+import '../../common/widgets/page_scaffold.dart';
+import '../../common/widgets/section_header.dart';
+import '../../common/widgets/smart_card.dart';
+import '../../core/theme/app_colors.dart';
+import '../../data/models/business_context_summary_model.dart';
+import '../../data/repositories/ai_advisor_repository.dart';
 
 class AiPage extends StatefulWidget {
   const AiPage({super.key});
@@ -12,296 +16,225 @@ class AiPage extends StatefulWidget {
 }
 
 class _AiPageState extends State<AiPage> {
-  final _supabase = Supabase.instance.client;
+  final AiAdvisorRepository _repository = AiAdvisorRepository();
+  final NumberFormat _currency =
+      NumberFormat.currency(locale: 'tr_TR', symbol: 'TL', decimalDigits: 2);
 
+  BusinessContextSummaryModel _summary = BusinessContextSummaryModel.empty();
   bool _loading = true;
-  bool _premium = false;
-
-  double totalIncome = 0;
-  double totalExpense = 0;
-  double unpaidInvoices = 0;
-  int criticalStockCount = 0;
-  int financialHealthScore = 0;
-
-  String riskLevel = "";
-  List<String> actions = [];
-
-  late RealtimeChannel _channel;
+  String? _errorMessage;
 
   @override
   void initState() {
     super.initState();
-    _init();
+    _loadSummary();
   }
 
-  Future<void> _init() async {
-    _premium = await _isPremium();
-
-    if (_premium) {
-      _initRealtime();
-      await _loadData();
-    } else {
-      setState(() => _loading = false);
-    }
-  }
-
- Future<bool> _isPremium() async {
-  try {
-    final user = _supabase.auth.currentUser;
-    if (user == null) return false;
-
-    final role = await _supabase
-        .from('user_business_roles')
-        .select('business_id')
-        .eq('user_id', user.id)
-        .limit(1)
-        .maybeSingle();
-
-    if (role == null) return false;
-
-    final businessId = role['business_id'];
-
-    final business = await _supabase
-        .from('businesses')
-        .select('plan')
-        .eq('id', businessId)
-        .maybeSingle();
-
-    if (business == null) return false;
-
-    debugPrint("AI PAGE PLAN: ${business['plan']}");
-
-    return business['plan'] == 'premium';
-  } catch (e) {
-    debugPrint("Premium check error: $e");
-    return false;
-  }
-}
-
-
-  void _initRealtime() {
-    _channel = _supabase.channel('ai-dashboard')
-      ..onPostgresChanges(
-        event: PostgresChangeEvent.all,
-        schema: 'public',
-        callback: (_) => _loadData(),
-      )
-      ..subscribe();
-  }
-
-  @override
-  void dispose() {
-    if (_premium) {
-      _supabase.removeChannel(_channel);
-    }
-    super.dispose();
-  }
-
-  Future<String?> _getBusinessId() async {
-    final user = _supabase.auth.currentUser;
-    if (user == null) return null;
-
-    final res = await _supabase
-        .from('user_business_roles')
-        .select('business_id')
-        .eq('user_id', user.id)
-        .single();
-
-    return res['business_id'];
-  }
-
-  Future<void> _loadData() async {
-    final businessId = await _getBusinessId();
-    if (businessId == null) return;
-
-    /// TRANSACTIONS
-    final tx = await _supabase
-        .from('transactions')
-        .select('amount,type')
-        .eq('business_id', businessId);
-
-    double income = 0;
-    double expense = 0;
-
-    for (var t in tx) {
-      if (t['type'] == 'income') {
-        income += (t['amount'] as num).toDouble();
-      } else {
-        expense += (t['amount'] as num).toDouble();
-      }
-    }
-
-    /// UNPAID
-    final invoices = await _supabase
-        .from('invoices')
-        .select('total,status')
-        .eq('business_id', businessId)
-        .neq('status', 'paid');
-
-    double unpaid = 0;
-    for (var i in invoices) {
-      unpaid += (i['total'] as num).toDouble();
-    }
-
-    /// CRITICAL STOCK
-    final stocks = await _supabase
-        .from('product_stocks')
-        .select('stock,min_stock')
-        .eq('business_id', businessId);
-
-    int critical = 0;
-    for (var s in stocks) {
-      if ((s['stock'] as num) <= (s['min_stock'] as num)) {
-        critical++;
-      }
-    }
-
-    /// CALL EDGE FUNCTION
-    final response = await _supabase.functions.invoke(
-       'ai-insight',
-      body: {
-        "businessId": businessId,
-        "income": income,
-        "expense": expense,
-        "unpaidInvoices": unpaid,
-        "criticalStock": critical,
-        "totalProducts": stocks.length
-      },
-    );
-
-    final data = response.data;
-
+  Future<void> _loadSummary() async {
     setState(() {
-      totalIncome = income;
-      totalExpense = expense;
-      unpaidInvoices = unpaid;
-      criticalStockCount = critical;
-      financialHealthScore = data['financialHealthScore'];
-      riskLevel = data['risk_level'];
-      actions = List<String>.from(data['actions']);
-      _loading = false;
+      _loading = true;
+      _errorMessage = null;
     });
+    try {
+      final summary = await _repository.buildContextSummary();
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _summary = summary;
+        _loading = false;
+      });
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _errorMessage = error.toString().replaceFirst('Exception: ', '');
+        _loading = false;
+      });
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final currency =
-        NumberFormat.currency(locale: 'tr_TR', symbol: '₺');
-
-    if (!_premium) {
-      return Scaffold(
-        appBar: AppBar(title: const Text("AI CFO")),
-        body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.lock, size: 60, color: Colors.grey),
-              const SizedBox(height: 20),
-              const Text(
-                "Finansal Sağlık Skoru Premium Özelliktir",
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 10),
-              const Text("Pro plana geçerek erişebilirsiniz."),
-              const SizedBox(height: 20),
-              ElevatedButton(
-                onPressed: () {
-                  Navigator.pushNamed(context, '/upgrade');
-                },
-                child: const Text("Planı Yükselt"),
-              )
-            ],
-          ),
+    return PageScaffold(
+      title: 'AI Analizler',
+      subtitle: 'İşletmenizin özet risk ve fırsat görünümünü tek ekranda inceleyin.',
+      actions: [
+        IconButton(
+          onPressed: _loading ? null : _loadSummary,
+          tooltip: 'Yenile',
+          icon: const Icon(Icons.refresh),
         ),
-      );
-    }
-
-    return Scaffold(
-      appBar: AppBar(title: const Text("AI CFO")),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : RefreshIndicator(
-              onRefresh: _loadData,
-              child: ListView(
-                padding: const EdgeInsets.all(20),
-                children: [
-                  _scoreCard(),
-                  const SizedBox(height: 20),
-                  _metricCard("Toplam Gelir",
-                      currency.format(totalIncome), Colors.green),
-                  _metricCard("Toplam Gider",
-                      currency.format(totalExpense), Colors.red),
-                  _metricCard("Tahsil Edilmemiş",
-                      currency.format(unpaidInvoices), Colors.orange),
-                  _metricCard("Kritik Stok",
-                      criticalStockCount.toString(), Colors.purple),
-                  const SizedBox(height: 30),
-                  const Text(
-                    "AI Stratejik Öneriler",
-                    style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold),
+      ],
+      child: _loading
+          ? const Center(child: Text('SmartKOBİ analiz ediyor...'))
+          : _errorMessage != null
+              ? Center(
+                  child: SmartCard(
+                    child: Text(_errorMessage!),
                   ),
-                  const SizedBox(height: 10),
-                  ...actions.map((a) => Card(
-                        child: ListTile(
-                          leading: const Icon(Icons.check_circle,
-                              color: Colors.blue),
-                          title: Text(a),
-                        ),
-                      ))
-                ],
-              ),
-            ),
+                )
+              : ListView(
+                  children: [
+                    SmartCard(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const SectionHeader(
+                            title: 'Genel Özet',
+                            subtitle: 'Finans, cari, stok ve nakit verilerinin birleşik görünümü',
+                          ),
+                          const SizedBox(height: 14),
+                          Text(
+                            _summary.summaryText ??
+                                'Yeterli veri bulunamadı. Gelir-gider, cari, stok ve nakit kayıtları eklendikçe öneriler güçlenir.',
+                            style: Theme.of(context).textTheme.bodyLarge,
+                          ),
+                          const SizedBox(height: 14),
+                          Wrap(
+                            spacing: 10,
+                            runSpacing: 10,
+                            children: [
+                              _SummaryMetric(
+                                label: 'Net Kâr',
+                                value: _currency.format(_summary.netProfit),
+                                color: _summary.netProfit >= 0
+                                    ? AppColors.success
+                                    : AppColors.danger,
+                              ),
+                              _SummaryMetric(
+                                label: 'Nakit Skoru',
+                                value: '${_summary.cashScore}/100',
+                                color: _summary.cashScore >= 70
+                                    ? AppColors.success
+                                    : _summary.cashScore >= 50
+                                        ? AppColors.warning
+                                        : AppColors.danger,
+                              ),
+                              _SummaryMetric(
+                                label: 'Geciken Tahsilat',
+                                value: _currency.format(_summary.overdueReceivables),
+                                color: AppColors.warning,
+                              ),
+                              _SummaryMetric(
+                                label: 'Kritik Stok',
+                                value: _summary.criticalStockCount.toString(),
+                                color: AppColors.info,
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    SmartCard(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const SectionHeader(
+                            title: 'Öne Çıkan Riskler',
+                            subtitle: 'Danışman bu riskleri cevaplarında önceliklendirir.',
+                          ),
+                          const SizedBox(height: 14),
+                          if (_summary.topRisks.isEmpty)
+                            const Text('Şu an belirgin bir kırmızı bayrak görünmüyor.')
+                          else
+                            ..._summary.topRisks.map(
+                              (item) => Padding(
+                                padding: const EdgeInsets.only(bottom: 10),
+                                child: Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Padding(
+                                      padding: EdgeInsets.only(top: 2),
+                                      child: Icon(
+                                        Icons.warning_amber_outlined,
+                                        color: AppColors.warning,
+                                        size: 18,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 10),
+                                    Expanded(child: Text(item)),
+                                  ],
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    SmartCard(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const SectionHeader(
+                            title: 'Fırsatlar',
+                            subtitle: 'Kısa vadede iyileştirme sağlayabilecek alanlar',
+                          ),
+                          const SizedBox(height: 14),
+                          if (_summary.topOpportunities.isEmpty)
+                            const Text('Henüz fırsat önerisi oluşturacak kadar veri bulunamadı.')
+                          else
+                            ..._summary.topOpportunities.map(
+                              (item) => Padding(
+                                padding: const EdgeInsets.only(bottom: 10),
+                                child: Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Padding(
+                                      padding: EdgeInsets.only(top: 2),
+                                      child: Icon(
+                                        Icons.auto_awesome,
+                                        color: AppColors.gold500,
+                                        size: 18,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 10),
+                                    Expanded(child: Text(item)),
+                                  ],
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
     );
   }
+}
 
-  Widget _scoreCard() {
-    Color scoreColor = Colors.green;
-    if (financialHealthScore < 50) scoreColor = Colors.red;
-    else if (financialHealthScore < 75) scoreColor = Colors.orange;
+class _SummaryMetric extends StatelessWidget {
+  const _SummaryMetric({
+    required this.label,
+    required this.value,
+    required this.color,
+  });
 
+  final String label;
+  final String value;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(24),
+      width: 160,
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(20),
-        gradient: LinearGradient(
-          colors: [scoreColor.withOpacity(0.8), scoreColor],
-        ),
+        color: AppColors.surfaceAlt,
+        borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            "Finansal Sağlık Skoru",
-            style: TextStyle(color: Colors.white70),
-          ),
-          const SizedBox(height: 10),
+          Text(label, style: Theme.of(context).textTheme.labelMedium),
+          const SizedBox(height: 6),
           Text(
-            "$financialHealthScore / 100",
-            style: const TextStyle(
-                fontSize: 32,
-                fontWeight: FontWeight.bold,
-                color: Colors.white),
+            value,
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(color: color),
           ),
-          const SizedBox(height: 10),
-          Text(
-            riskLevel,
-            style: const TextStyle(color: Colors.white),
-          )
         ],
-      ),
-    );
-  }
-
-  Widget _metricCard(String title, String value, Color color) {
-    return Card(
-      child: ListTile(
-        title: Text(title),
-        trailing: Text(
-          value,
-          style:
-              TextStyle(fontWeight: FontWeight.bold, color: color),
-        ),
       ),
     );
   }

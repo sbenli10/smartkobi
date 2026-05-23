@@ -1,126 +1,112 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../core/theme/app_colors.dart';
 import '../../home/home_shell.dart';
 import 'register_page.dart';
 
-enum LoginStyle {
-  corporateSaaS,   // 💼 temiz, kurumsal, trust-first
-  startupModern,   // 🚀 enerjik, gradient, playful
-  figmaConcept,    // 🎨 spacing + type scale + premium composition
-  glassPremium,    // 🔥 glassmorphism + blur + glow
-  darkPro,         // 🌙 koyu, neon accent, high-contrast
-}
-
 class LoginPagePremium extends StatefulWidget {
-  const LoginPagePremium({super.key, required this.style});
-  final LoginStyle style;
+  const LoginPagePremium({super.key});
 
   @override
   State<LoginPagePremium> createState() => _LoginPagePremiumState();
 }
 
-class _LoginPagePremiumState extends State<LoginPagePremium> with SingleTickerProviderStateMixin {
+class _LoginPagePremiumState extends State<LoginPagePremium> {
   final _formKey = GlobalKey<FormState>();
-  final _email = TextEditingController();
-  final _password = TextEditingController();
-
+  final _emailCtrl = TextEditingController();
+  final _passCtrl = TextEditingController();
   bool _loading = false;
   bool _obscure = true;
 
-  late final AnimationController _intro;
-  late final Animation<double> _fade;
-  late final Animation<Offset> _slide;
-
-  @override
-  void initState() {
-    super.initState();
-    _intro = AnimationController(vsync: this, duration: const Duration(milliseconds: 520));
-    _fade = CurvedAnimation(parent: _intro, curve: Curves.easeOutCubic);
-    _slide = Tween(begin: const Offset(0, 0.06), end: Offset.zero)
-        .animate(CurvedAnimation(parent: _intro, curve: Curves.easeOutCubic));
-    _intro.forward();
-  }
-
   @override
   void dispose() {
-    _intro.dispose();
-    _email.dispose();
-    _password.dispose();
+    _emailCtrl.dispose();
+    _passCtrl.dispose();
     super.dispose();
   }
 
   Future<void> _resetPassword() async {
-  final email = _email.text.trim();
-
-  if (email.isEmpty || !email.contains("@")) {
-    _showError("Önce geçerli bir e-posta giriniz.");
-    return;
+    final email = _emailCtrl.text.trim();
+    if (email.isEmpty || !email.contains('@')) {
+      _showError('Lütfen önce geçerli bir e-posta adresi girin.');
+      return;
+    }
+    try {
+      await Supabase.instance.client.auth.resetPasswordForEmail(
+        email,
+        redirectTo: 'http://localhost:3000/#/reset-password',
+      );
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Şifre sıfırlama bağlantısı e-posta adresinize gönderildi.'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (_) {
+      _showError('Şifre sıfırlama sırasında bir sorun oluştu. Lütfen tekrar deneyin.');
+    }
   }
-
-  try {
-    await Supabase.instance.client.auth.resetPasswordForEmail(
-      email,
-      redirectTo: 'http://localhost:3000/#/reset-password',
-    );
-
-    if (!mounted) return;
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text("Şifre sıfırlama linki e-posta adresinize gönderildi."),
-        backgroundColor: Colors.green,
-      ),
-    );
-  } catch (e) {
-    _showError("Şifre sıfırlama başarısız.");
-  }
-}
 
   Future<void> _login() async {
-    if (!_formKey.currentState!.validate()) return;
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
     FocusScope.of(context).unfocus();
     setState(() => _loading = true);
-
     try {
-      final response = await Supabase.instance.client.auth.signInWithPassword(
-        email: _email.text.trim(),
-        password: _password.text.trim(),
+      debugPrint(
+        'Login denemesi basliyor: email=${_emailCtrl.text}, password=${_passCtrl.text}',
       );
+      final response = await Supabase.instance.client.auth.signInWithPassword(
+        email: _emailCtrl.text.trim(),
+        password: _passCtrl.text.trim(),
+      );
+      debugPrint('Supabase login RESPONSE: $response');
+      debugPrint('Kullanici: ${response.user}, Session: ${response.session}');
 
-      if (!mounted) return;
-
+      if (!mounted) {
+        return;
+      }
       if (response.user != null) {
+        debugPrint('Giriş başarılı, kullanıcı id: ${response.user!.id}');
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text("Giriş başarılı. Dashboard yükleniyor..."),
+            content: Text('Giriş başarılı. Ana sayfa açılıyor...'),
             backgroundColor: Colors.green,
-            duration: Duration(seconds: 2),
+            duration: Duration(seconds: 1),
           ),
         );
-
-        await Future.delayed(const Duration(milliseconds: 650));
-        if (!mounted) return;
-
+        await Future.delayed(const Duration(milliseconds: 500));
+        if (!mounted) {
+          return;
+        }
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (_) => HomeShell()),
+          MaterialPageRoute(builder: (_) => const HomeShell()),
         );
       }
     } on AuthException catch (e) {
-      _showError(_mapAuthError(e.message));
-    } catch (_) {
-      _showError("Beklenmeyen bir sistem hatası oluştu.");
+      debugPrint(
+        'Supabase AuthException -- code: ${e.statusCode}, message: ${e.message}',
+      );
+      final msg = e.message.contains('Invalid login credentials')
+          ? 'E-posta veya şifre hatalı.'
+          : e.message.contains('Email not confirmed')
+              ? 'E-posta adresinizi doğrulamanız gerekiyor.'
+              : 'Bağlantı sırasında bir sorun oluştu. Lütfen tekrar deneyin.';
+      _showError('$msg\n\nHata Detayı: ${e.statusCode} - ${e.message}');
+    } catch (e, stack) {
+      debugPrint('Diğer hata yakalandı: $e');
+      debugPrint('$stack');
+      _showError('Bağlantı sırasında bir sorun oluştu.\nHata: $e');
     }
-
-    if (mounted) setState(() => _loading = false);
-  }
-
-  String _mapAuthError(String message) {
-    if (message.contains("Invalid login credentials")) return "E-posta veya şifre hatalı.";
-    if (message.contains("Email not confirmed")) return "E-posta adresinizi doğrulamanız gerekiyor.";
-    return message;
+    if (mounted) {
+      setState(() => _loading = false);
+    }
   }
 
   void _showError(String message) {
@@ -135,169 +121,289 @@ class _LoginPagePremiumState extends State<LoginPagePremium> with SingleTickerPr
 
   @override
   Widget build(BuildContext context) {
-    final spec = _LoginVisualSpec.of(context, widget.style);
-
     return Scaffold(
-      body: Stack(
-        children: [
-          _PremiumBackground(spec: spec),
-          SafeArea(
-            child: Center(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(24),
-                child: FadeTransition(
-                  opacity: _fade,
-                  child: SlideTransition(
-                    position: _slide,
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 440),
-                      child: _AuthCard(
-                        spec: spec,
-                        child: Form(
-                          key: _formKey,
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              _BrandHeader(spec: spec),
-                              const SizedBox(height: 26),
+      backgroundColor: const Color(0xFFF7F8FA),
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              Color(0xFFF9FAFB),
+              Color(0xFFF4F6F8),
+            ],
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+          ),
+        ),
+        child: SafeArea(
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final isWide = constraints.maxWidth >= 980;
+              final horizontalPadding = constraints.maxWidth >= 1200
+                  ? 48.0
+                  : constraints.maxWidth >= 760
+                      ? 28.0
+                      : 18.0;
 
-                              TextFormField(
-                                controller: _email,
-                                keyboardType: TextInputType.emailAddress,
-                                autofillHints: const [AutofillHints.username, AutofillHints.email],
-                                validator: (v) {
-                                  if (v == null || v.trim().isEmpty) return "E-posta adresinizi giriniz";
-                                  if (!v.contains("@")) return "Geçerli bir e-posta giriniz";
-                                  return null;
-                                },
-                                decoration: InputDecoration(
-                                  labelText: "E-posta",
-                                  prefixIcon: const Icon(Icons.email_outlined),
-                                ),
-                              ),
-                              const SizedBox(height: 16),
-
-                              TextFormField(
-                                controller: _password,
-                                obscureText: _obscure,
-                                autofillHints: const [AutofillHints.password],
-                                onFieldSubmitted: (_) => _loading ? null : _login(),
-                                validator: (v) {
-                                  if (v == null || v.isEmpty) return "Şifre giriniz";
-                                  if (v.length < 6) return "Şifre en az 6 karakter olmalı";
-                                  return null;
-                                },
-                                decoration: InputDecoration(
-                                  labelText: "Şifre",
-                                  prefixIcon: const Icon(Icons.lock_outline),
-                                  suffixIcon: IconButton(
-                                    tooltip: _obscure ? "Şifreyi göster" : "Şifreyi gizle",
-                                    icon: Icon(_obscure ? Icons.visibility_off : Icons.visibility),
-                                    onPressed: () => setState(() => _obscure = !_obscure),
-                                  ),
-                                ),
-                              ),
-
-                              const SizedBox(height: 14),
-                              _BelowFieldsRow(
-                                spec: spec,
-                                onForgotPassword: _resetPassword,
-                              ),
-                              const SizedBox(height: 18),
-
-                              _PrimaryButton(
-                                spec: spec,
-                                loading: _loading,
-                                onPressed: _loading ? null : _login,
-                                label: "Giriş Yap",
-                              ),
-
-                              const SizedBox(height: 18),
-                              _DividerOr(spec: spec),
-                              const SizedBox(height: 12),
-
-                              TextButton(
-                                onPressed: () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(builder: (_) => const RegisterPage()),
-                                  );
-                                },
-                                child: Text(
-                                  "Hesap oluştur",
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.w700,
-                                    color: spec.linkColor,
-                                  ),
-                                ),
-                              ),
-
-                              const SizedBox(height: 12),
-                              Text(
-                                "🔒 Tüm verileriniz uçtan uca şifreleme ile korunur.",
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: spec.subtleTextColor,
-                                ),
-                              ),
-                            ],
+              final card = _LoginCardShell(
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        'Giriş Yap',
+                        style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                              color: AppColors.navy900,
+                              fontWeight: FontWeight.w800,
+                            ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Hesabınıza giriş yaparak işletme verilerinize güvenle erişin.',
+                        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                              color: const Color(0xFF5E6B7A),
+                              height: 1.5,
+                            ),
+                      ),
+                      const SizedBox(height: 28),
+                      _PremiumField(
+                        controller: _emailCtrl,
+                        label: 'E-posta adresiniz',
+                        hint: 'ornek@isletme.com',
+                        icon: Icons.mail_outline_rounded,
+                        keyboardType: TextInputType.emailAddress,
+                        autofill: const [
+                          AutofillHints.username,
+                          AutofillHints.email,
+                        ],
+                        enabled: !_loading,
+                        validator: (value) {
+                          if (value == null || value.trim().isEmpty) {
+                            return 'E-posta adresinizi girin';
+                          }
+                          if (!value.trim().contains('@') ||
+                              !value.trim().contains('.')) {
+                            return 'Geçerli bir e-posta adresi girin';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 18),
+                      _PremiumPasswordField(
+                        controller: _passCtrl,
+                        obscure: _obscure,
+                        onToggleObscure: () => setState(() => _obscure = !_obscure),
+                        enabled: !_loading,
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'Şifrenizi girin';
+                          }
+                          if (value.length < 6) {
+                            return 'Şifre en az 6 karakter olmalı';
+                          }
+                          return null;
+                        },
+                        onFieldSubmitted: (_) => _loading ? null : _login(),
+                      ),
+                      const SizedBox(height: 10),
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: TextButton(
+                          onPressed: _loading ? null : _resetPassword,
+                          style: TextButton.styleFrom(
+                            foregroundColor: AppColors.navy800,
+                            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+                          ),
+                          child: const Text(
+                            'Şifremi Unuttum',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w600,
+                              decoration: TextDecoration.underline,
+                            ),
                           ),
                         ),
                       ),
-                    ),
+                      const SizedBox(height: 20),
+                      _PrimaryLoginButton(
+                        loading: _loading,
+                        onPressed: _loading ? null : _login,
+                      ),
+                      const SizedBox(height: 18),
+                      Center(
+                        child: Wrap(
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          alignment: WrapAlignment.center,
+                          spacing: 6,
+                          runSpacing: 4,
+                          children: [
+                            Text(
+                              'Hesabınız yok mu?',
+                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                    color: const Color(0xFF667387),
+                                  ),
+                            ),
+                            TextButton(
+                              onPressed: _loading
+                                  ? null
+                                  : () {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (_) => const RegisterPage(),
+                                        ),
+                                      );
+                                    },
+                              style: TextButton.styleFrom(
+                                foregroundColor: AppColors.navy900,
+                                padding: const EdgeInsets.symmetric(horizontal: 4),
+                              ),
+                              child: const Text(
+                                'Kayıt olun',
+                                style: TextStyle(fontWeight: FontWeight.w700),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      const _SecurityFootnote(),
+                    ],
                   ),
                 ),
-              ),
-            ),
+              );
+
+              return Center(
+                child: SingleChildScrollView(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: horizontalPadding,
+                    vertical: 24,
+                  ),
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 1180),
+                    child: isWide
+                        ? Row(
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              const Expanded(
+                                child: Padding(
+                                  padding: EdgeInsets.only(right: 36),
+                                  child: _LoginShowcase(),
+                                ),
+                              ),
+                              ConstrainedBox(
+                                constraints: const BoxConstraints(maxWidth: 470),
+                                child: card,
+                              ),
+                            ],
+                          )
+                        : Column(
+                            children: [
+                              const _CompactBrandBlock(),
+                              const SizedBox(height: 24),
+                              ConstrainedBox(
+                                constraints: const BoxConstraints(maxWidth: 460),
+                                child: card,
+                              ),
+                            ],
+                          ),
+                  ),
+                ),
+              );
+            },
           ),
-        ],
+        ),
       ),
     );
   }
 }
 
-/// ---------- UI Building Blocks ----------
+class _LoginShowcase extends StatelessWidget {
+  const _LoginShowcase();
 
-class _BrandHeader extends StatelessWidget {
-  const _BrandHeader({required this.spec});
-  final _LoginVisualSpec spec;
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        const _BrandBadge(),
+        const SizedBox(height: 28),
+        Text(
+          'SmartKOBİ',
+          style: Theme.of(context).textTheme.displaySmall?.copyWith(
+                color: AppColors.navy900,
+                fontWeight: FontWeight.w800,
+              ),
+        ),
+        const SizedBox(height: 12),
+        Text(
+          'KOBİ’niz için akıllı yönetim paneli.',
+          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                color: AppColors.navy800,
+                fontWeight: FontWeight.w700,
+              ),
+        ),
+        const SizedBox(height: 16),
+        ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 520),
+          child: Text(
+            'Finans, cari, stok, nakit akışı ve destek analizlerini tek ekranda yönetin.',
+            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                  color: const Color(0xFF5F6B79),
+                  height: 1.7,
+                ),
+          ),
+        ),
+        const SizedBox(height: 28),
+        Wrap(
+          spacing: 14,
+          runSpacing: 14,
+          children: const [
+            _InfoPill(
+              icon: Icons.shield_outlined,
+              title: 'Güvenli Erişim',
+              subtitle: 'Verilerinize yalnızca size özel güvenli erişim.',
+            ),
+            _InfoPill(
+              icon: Icons.insights_outlined,
+              title: 'Akıllı Özetler',
+              subtitle: 'İşletmenizin durumunu hızla anlamanıza yardımcı olur.',
+            ),
+            _InfoPill(
+              icon: Icons.business_center_outlined,
+              title: 'Tek Merkez',
+              subtitle: 'Finans, cari, stok ve analizlerinizi tek yerden yönetin.',
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _CompactBrandBlock extends StatelessWidget {
+  const _CompactBrandBlock();
 
   @override
   Widget build(BuildContext context) {
     return Column(
       children: [
-        Container(
-          height: 74,
-          width: 74,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            gradient: spec.logoGradient,
-            boxShadow: [
-              BoxShadow(
-                color: spec.glowColor.withOpacity(spec.style == LoginStyle.corporateSaaS ? 0.14 : 0.24),
-                blurRadius: 18,
-                offset: const Offset(0, 10),
-              )
-            ],
-          ),
-          child: Icon(spec.logoIcon, color: Colors.white, size: 34),
-        ),
-        const SizedBox(height: 14),
+        const _BrandBadge(),
+        const SizedBox(height: 18),
         Text(
-          "SmartKOBİ",
-          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                color: spec.titleColor,
-                letterSpacing: -0.2,
+          'SmartKOBİ',
+          style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                color: AppColors.navy900,
+                fontWeight: FontWeight.w800,
               ),
         ),
-        const SizedBox(height: 6),
+        const SizedBox(height: 8),
         Text(
-          spec.subtitle,
+          'İşletmenizi tek yerden yönetin.',
           textAlign: TextAlign.center,
-          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: spec.subtleTextColor,
-                height: 1.35,
+          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                color: const Color(0xFF5F6B79),
               ),
         ),
       ],
@@ -305,396 +411,352 @@ class _BrandHeader extends StatelessWidget {
   }
 }
 
-class _BelowFieldsRow extends StatelessWidget {
-  const _BelowFieldsRow({
-    required this.spec,
-    required this.onForgotPassword,
-  });
-
-  final _LoginVisualSpec spec;
-  final VoidCallback onForgotPassword;
+class _BrandBadge extends StatelessWidget {
+  const _BrandBadge();
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Icon(Icons.verified_user_outlined,
-            size: 16, color: spec.subtleTextColor),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Text(
-            spec.trustLine,
-            style: TextStyle(
-              fontSize: 12.5,
-              color: spec.subtleTextColor,
-            ),
+    return Container(
+      height: 74,
+      width: 74,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(22),
+        color: Colors.white,
+        border: Border.all(color: const Color(0xFFE7EBF0)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.06),
+            blurRadius: 22,
+            offset: const Offset(0, 14),
           ),
-        ),
-        TextButton(
-          onPressed: onForgotPassword,
-          child: Text(
-            "Şifremi unuttum",
-            style: TextStyle(
-              color: spec.linkColor,
-              fontWeight: FontWeight.w600,
-            ),
+        ],
+      ),
+      child: Center(
+        child: Container(
+          height: 52,
+          width: 52,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            color: AppColors.navy900,
           ),
-        ),
-      ],
-    );
-  }
-}
-
-class _DividerOr extends StatelessWidget {
-  const _DividerOr({required this.spec});
-  final _LoginVisualSpec spec;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(child: Divider(color: spec.dividerColor)),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 10),
-          child: Text("veya", style: TextStyle(color: spec.subtleTextColor)),
-        ),
-        Expanded(child: Divider(color: spec.dividerColor)),
-      ],
-    );
-  }
-}
-
-class _PrimaryButton extends StatelessWidget {
-  const _PrimaryButton({
-    required this.spec,
-    required this.loading,
-    required this.onPressed,
-    required this.label,
-  });
-
-  final _LoginVisualSpec spec;
-  final bool loading;
-  final VoidCallback? onPressed;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedScale(
-      duration: const Duration(milliseconds: 120),
-      scale: loading ? 0.985 : 1,
-      child: Container(
-        height: 54,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(14),
-          gradient: spec.ctaGradient,
-          boxShadow: [
-            BoxShadow(
-              color: spec.glowColor.withOpacity(spec.style == LoginStyle.corporateSaaS ? 0.18 : 0.26),
-              blurRadius: 18,
-              offset: const Offset(0, 10),
-            )
-          ],
-        ),
-        child: ElevatedButton(
-          onPressed: onPressed,
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.transparent,
-            shadowColor: Colors.transparent,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+          child: const Icon(
+            Icons.hub_rounded,
+            color: AppColors.gold400,
+            size: 28,
           ),
-          child: loading
-              ? const SizedBox(
-                  height: 22,
-                  width: 22,
-                  child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white),
-                )
-              : Text(
-                  label,
-                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: Colors.white),
-                ),
         ),
       ),
     );
   }
 }
 
-class _AuthCard extends StatelessWidget {
-  const _AuthCard({required this.spec, required this.child});
-  final _LoginVisualSpec spec;
+class _LoginCardShell extends StatelessWidget {
+  const _LoginCardShell({required this.child});
+
   final Widget child;
 
   @override
   Widget build(BuildContext context) {
-    final card = Container(
-      padding: const EdgeInsets.fromLTRB(26, 26, 26, 22),
+    return Container(
+      padding: const EdgeInsets.fromLTRB(28, 28, 28, 24),
       decoration: BoxDecoration(
-        color: spec.cardColor,
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: spec.cardBorderColor),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: const Color(0xFFE7EBF0)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(spec.style == LoginStyle.corporateSaaS ? 0.10 : 0.16),
-            blurRadius: 28,
-            offset: const Offset(0, 16),
-          )
+            color: const Color(0xFF0B1B2E).withValues(alpha: 0.08),
+            blurRadius: 30,
+            offset: const Offset(0, 18),
+          ),
         ],
       ),
       child: child,
     );
-
-    if (spec.useGlass) {
-      return ClipRRect(
-        borderRadius: BorderRadius.circular(22),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
-          child: card,
-        ),
-      );
-    }
-    return card;
   }
 }
 
-class _PremiumBackground extends StatelessWidget {
-  const _PremiumBackground({required this.spec});
-  final _LoginVisualSpec spec;
+class _PremiumField extends StatelessWidget {
+  const _PremiumField({
+    required this.controller,
+    required this.label,
+    required this.hint,
+    required this.icon,
+    required this.enabled,
+    this.keyboardType,
+    this.autofill,
+    this.validator,
+  });
+
+  final TextEditingController controller;
+  final String label;
+  final String hint;
+  final IconData icon;
+  final bool enabled;
+  final TextInputType? keyboardType;
+  final List<String>? autofill;
+  final String? Function(String?)? validator;
+
+  @override
+  Widget build(BuildContext context) {
+    return TextFormField(
+      controller: controller,
+      enabled: enabled,
+      keyboardType: keyboardType,
+      autofillHints: autofill,
+      validator: validator,
+      style: const TextStyle(
+        color: AppColors.navy900,
+        fontWeight: FontWeight.w600,
+      ),
+      decoration: _inputDecoration(
+        label: label,
+        hint: hint,
+        icon: icon,
+      ),
+    );
+  }
+}
+
+class _PremiumPasswordField extends StatelessWidget {
+  const _PremiumPasswordField({
+    required this.controller,
+    required this.obscure,
+    required this.onToggleObscure,
+    required this.enabled,
+    this.validator,
+    this.onFieldSubmitted,
+  });
+
+  final TextEditingController controller;
+  final bool obscure;
+  final VoidCallback onToggleObscure;
+  final bool enabled;
+  final String? Function(String?)? validator;
+  final void Function(String)? onFieldSubmitted;
+
+  @override
+  Widget build(BuildContext context) {
+    return TextFormField(
+      controller: controller,
+      enabled: enabled,
+      obscureText: obscure,
+      autofillHints: const [AutofillHints.password],
+      validator: validator,
+      onFieldSubmitted: onFieldSubmitted,
+      style: const TextStyle(
+        color: AppColors.navy900,
+        fontWeight: FontWeight.w600,
+      ),
+      decoration: _inputDecoration(
+        label: 'Şifreniz',
+        hint: 'Şifrenizi girin',
+        icon: Icons.lock_outline_rounded,
+        suffix: IconButton(
+          onPressed: enabled ? onToggleObscure : null,
+          icon: Icon(
+            obscure ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+            color: const Color(0xFF5E6B7A),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+InputDecoration _inputDecoration({
+  required String label,
+  required String hint,
+  required IconData icon,
+  Widget? suffix,
+}) {
+  const borderColor = Color(0xFFD8E0E8);
+  return InputDecoration(
+    labelText: label,
+    hintText: hint,
+    filled: true,
+    fillColor: const Color(0xFFF8FAFC),
+    prefixIcon: Icon(icon, color: const Color(0xFF4D5A6B)),
+    suffixIcon: suffix,
+    contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 17),
+    labelStyle: const TextStyle(
+      color: Color(0xFF4F5D70),
+      fontWeight: FontWeight.w600,
+    ),
+    hintStyle: const TextStyle(
+      color: Color(0xFF97A4B3),
+      fontWeight: FontWeight.w500,
+    ),
+    enabledBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(18),
+      borderSide: const BorderSide(color: borderColor),
+    ),
+    disabledBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(18),
+      borderSide: const BorderSide(color: borderColor),
+    ),
+    errorBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(18),
+      borderSide: const BorderSide(color: Colors.redAccent),
+    ),
+    focusedErrorBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(18),
+      borderSide: const BorderSide(color: Colors.redAccent, width: 1.2),
+    ),
+    focusedBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(18),
+      borderSide: const BorderSide(color: AppColors.navy800, width: 1.3),
+    ),
+  );
+}
+
+class _PrimaryLoginButton extends StatelessWidget {
+  const _PrimaryLoginButton({
+    required this.loading,
+    required this.onPressed,
+  });
+
+  final bool loading;
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: double.infinity,
+      height: 54,
+      child: ElevatedButton(
+        onPressed: onPressed,
+        style: ElevatedButton.styleFrom(
+          elevation: 0,
+          backgroundColor: AppColors.navy900,
+          foregroundColor: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(18),
+          ),
+        ),
+        child: loading
+            ? const SizedBox(
+                width: 22,
+                height: 22,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2.4,
+                  color: Colors.white,
+                ),
+              )
+            : const Text(
+                'Giriş Yap',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+      ),
+    );
+  }
+}
+
+class _SecurityFootnote extends StatelessWidget {
+  const _SecurityFootnote();
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: BoxDecoration(gradient: spec.backgroundGradient),
-      child: Stack(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF7F8FA),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFFE7EBF0)),
+      ),
+      child: Row(
         children: [
-          // light blobs
-          Positioned(
-            top: -120,
-            right: -90,
-            child: _Blob(color: Colors.white.withOpacity(spec.blobOpacityA), size: 260),
-          ),
-          Positioned(
-            bottom: -140,
-            left: -110,
-            child: _Blob(color: Colors.white.withOpacity(spec.blobOpacityB), size: 320),
-          ),
-          if (spec.style == LoginStyle.figmaConcept || spec.style == LoginStyle.startupModern)
-            Positioned(
-              top: 120,
-              left: -60,
-              child: _Blob(color: Colors.white.withOpacity(0.05), size: 180),
+          Container(
+            height: 34,
+            width: 34,
+            decoration: BoxDecoration(
+              color: AppColors.navy900.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(12),
             ),
+            child: const Icon(
+              Icons.shield_outlined,
+              color: AppColors.navy900,
+              size: 18,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              'Verileriniz güvenli şekilde korunur. İşletme verilerinize yalnızca siz erişebilirsiniz.',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: const Color(0xFF5F6B79),
+                    height: 1.5,
+                  ),
+            ),
+          ),
         ],
       ),
     );
   }
 }
 
-class _Blob extends StatelessWidget {
-  const _Blob({required this.color, required this.size});
-  final Color color;
-  final double size;
+class _InfoPill extends StatelessWidget {
+  const _InfoPill({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+  });
+
+  final IconData icon;
+  final String title;
+  final String subtitle;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: size,
-      width: size,
-      decoration: BoxDecoration(shape: BoxShape.circle, color: color),
+      width: 208,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFE7EBF0)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 18,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            height: 42,
+            width: 42,
+            decoration: BoxDecoration(
+              color: AppColors.navy900.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Icon(icon, color: AppColors.navy900),
+          ),
+          const SizedBox(height: 14),
+          Text(
+            title,
+            style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                  color: AppColors.navy900,
+                  fontWeight: FontWeight.w700,
+                ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            subtitle,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: const Color(0xFF657285),
+                  height: 1.5,
+                ),
+          ),
+        ],
+      ),
     );
-  }
-}
-
-/// ---------- Visual Spec (5 Style) ----------
-
-class _LoginVisualSpec {
-  _LoginVisualSpec({
-    required this.style,
-    required this.backgroundGradient,
-    required this.cardColor,
-    required this.cardBorderColor,
-    required this.titleColor,
-    required this.subtleTextColor,
-    required this.linkColor,
-    required this.dividerColor,
-    required this.ctaGradient,
-    required this.logoGradient,
-    required this.glowColor,
-    required this.logoIcon,
-    required this.subtitle,
-    required this.trustLine,
-    required this.useGlass,
-    required this.blobOpacityA,
-    required this.blobOpacityB,
-    required this.snackColor,
-  });
-
-  final LoginStyle style;
-
-  final Gradient backgroundGradient;
-  final Color cardColor;
-  final Color cardBorderColor;
-
-  final Color titleColor;
-  final Color subtleTextColor;
-  final Color linkColor;
-  final Color dividerColor;
-
-  final Gradient ctaGradient;
-  final Gradient logoGradient;
-
-  final Color glowColor;
-  final IconData logoIcon;
-
-  final String subtitle;
-  final String trustLine;
-
-  final bool useGlass;
-  final double blobOpacityA;
-  final double blobOpacityB;
-
-  final Color snackColor;
-
-  static _LoginVisualSpec of(BuildContext context, LoginStyle style) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    // defaults (theme-aware)
-    Color title = isDark ? const Color(0xFFF8FAFC) : const Color(0xFF0F172A);
-    Color subtle = isDark ? Colors.white.withOpacity(0.70) : Colors.black.withOpacity(0.55);
-    Color divider = isDark ? Colors.white.withOpacity(0.10) : Colors.black.withOpacity(0.08);
-
-    switch (style) {
-      case LoginStyle.corporateSaaS:
-        return _LoginVisualSpec(
-          style: style,
-          backgroundGradient: const LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [Color(0xFFF6F7FB), Color(0xFFEEF2FF)],
-          ),
-          cardColor: isDark ? const Color(0xFF0F1A30) : Colors.white,
-          cardBorderColor: isDark ? Colors.white.withOpacity(0.10) : Colors.black.withOpacity(0.06),
-          titleColor: title,
-          subtleTextColor: subtle,
-          linkColor: isDark ? const Color(0xFF93C5FD) : const Color(0xFF1E3A8A),
-          dividerColor: divider,
-          ctaGradient: const LinearGradient(colors: [Color(0xFF1E3A8A), Color(0xFF2563EB)]),
-          logoGradient: const LinearGradient(colors: [Color(0xFF1E3A8A), Color(0xFF60A5FA)]),
-          glowColor: isDark ? const Color(0xFF60A5FA) : const Color(0xFF2563EB),
-          logoIcon: Icons.business_center_outlined,
-          subtitle: "İşletmenizi güvenle yönetin.\nKurumsal, hızlı ve güvenilir.",
-          trustLine: "Kurumsal güvenlik standartları (SOC2/ISO uyumlu altyapı).",
-          useGlass: false,
-          blobOpacityA: 0.10,
-          blobOpacityB: 0.08,
-          snackColor: isDark ? const Color(0xFF1F2937) : const Color(0xFF0F172A),
-        );
-
-      case LoginStyle.startupModern:
-        return _LoginVisualSpec(
-          style: style,
-          backgroundGradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: isDark
-                ? const [Color(0xFF0B1220), Color(0xFF111C3A), Color(0xFF1B2A55)]
-                : const [Color(0xFFEEF2FF), Color(0xFFE0E7FF), Color(0xFFDBEAFE)],
-          ),
-          cardColor: isDark ? Colors.white.withOpacity(0.06) : Colors.white,
-          cardBorderColor: isDark ? Colors.white.withOpacity(0.12) : Colors.black.withOpacity(0.06),
-          titleColor: title,
-          subtleTextColor: subtle,
-          linkColor: isDark ? const Color(0xFFA5B4FC) : const Color(0xFF4F46E5),
-          dividerColor: divider,
-          ctaGradient: const LinearGradient(colors: [Color(0xFF4F46E5), Color(0xFF06B6D4)]),
-          logoGradient: const LinearGradient(colors: [Color(0xFF4F46E5), Color(0xFF06B6D4)]),
-          glowColor: const Color(0xFF06B6D4),
-          logoIcon: Icons.auto_graph_outlined,
-          subtitle: "KOBİ’ler için modern finans ve operasyon yönetimi.\nDakikalar içinde başlayın.",
-          trustLine: "Güvenli oturum + şifrelenmiş iletişim (TLS/HTTPS).",
-          useGlass: isDark, // dark’ta glass çok iyi duruyor
-          blobOpacityA: isDark ? 0.08 : 0.12,
-          blobOpacityB: isDark ? 0.06 : 0.10,
-          snackColor: isDark ? const Color(0xFF111827) : const Color(0xFF0F172A),
-        );
-
-      case LoginStyle.figmaConcept:
-        return _LoginVisualSpec(
-          style: style,
-          backgroundGradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: isDark
-                ? const [Color(0xFF071023), Color(0xFF0B1633), Color(0xFF0E2047)]
-                : const [Color(0xFFF8FAFF), Color(0xFFEEF2FF), Color(0xFFE0E7FF)],
-          ),
-          cardColor: isDark ? Colors.white.withOpacity(0.07) : Colors.white,
-          cardBorderColor: isDark ? Colors.white.withOpacity(0.14) : Colors.black.withOpacity(0.06),
-          titleColor: title,
-          subtleTextColor: subtle,
-          linkColor: isDark ? const Color(0xFF67E8F9) : const Color(0xFF2563EB),
-          dividerColor: divider,
-          ctaGradient: const LinearGradient(colors: [Color(0xFF2563EB), Color(0xFF7C3AED)]),
-          logoGradient: const LinearGradient(colors: [Color(0xFF2563EB), Color(0xFF7C3AED)]),
-          glowColor: const Color(0xFF7C3AED),
-          logoIcon: Icons.shield_outlined,
-          subtitle: "Premium deneyim: net tipografi, doğru boşluklar,\nparlak CTA ve güven mesajı.",
-          trustLine: "Oturum açma işlemleri denetlenir ve anomali tespiti yapılır.",
-          useGlass: true,
-          blobOpacityA: isDark ? 0.09 : 0.12,
-          blobOpacityB: isDark ? 0.07 : 0.10,
-          snackColor: isDark ? const Color(0xFF0B1220) : const Color(0xFF0F172A),
-        );
-
-      case LoginStyle.glassPremium:
-        return _LoginVisualSpec(
-          style: style,
-          backgroundGradient: const LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [Color(0xFF0B1220), Color(0xFF121D3D), Color(0xFF1B2A55)],
-          ),
-          cardColor: Colors.white.withOpacity(0.08),
-          cardBorderColor: Colors.white.withOpacity(0.14),
-          titleColor: const Color(0xFFF8FAFC),
-          subtleTextColor: Colors.white.withOpacity(0.72),
-          linkColor: const Color(0xFF67E8F9),
-          dividerColor: Colors.white.withOpacity(0.12),
-          ctaGradient: const LinearGradient(colors: [Color(0xFF22D3EE), Color(0xFF6366F1)]),
-          logoGradient: const LinearGradient(colors: [Color(0xFF22D3EE), Color(0xFF6366F1)]),
-          glowColor: const Color(0xFF22D3EE),
-          logoIcon: Icons.diamond_outlined,
-          subtitle: "Cam efekti + blur + glow.\nDaha premium bir ilk izlenim.",
-          trustLine: "Güvenli oturum, cihaz bazlı güvenlik kontrolü.",
-          useGlass: true,
-          blobOpacityA: 0.10,
-          blobOpacityB: 0.08,
-          snackColor: const Color(0xFF0B1220),
-        );
-
-      case LoginStyle.darkPro:
-        return _LoginVisualSpec(
-          style: style,
-          backgroundGradient: const LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [Color(0xFF050816), Color(0xFF0B1220), Color(0xFF111C3A)],
-          ),
-          cardColor: const Color(0xFF0F1A30),
-          cardBorderColor: Colors.white.withOpacity(0.12),
-          titleColor: const Color(0xFFF8FAFC),
-          subtleTextColor: Colors.white.withOpacity(0.70),
-          linkColor: const Color(0xFFA78BFA),
-          dividerColor: Colors.white.withOpacity(0.12),
-          ctaGradient: const LinearGradient(colors: [Color(0xFF7C3AED), Color(0xFFEC4899)]),
-          logoGradient: const LinearGradient(colors: [Color(0xFF7C3AED), Color(0xFFEC4899)]),
-          glowColor: const Color(0xFFEC4899),
-          logoIcon: Icons.nightlight_round,
-          subtitle: "Koyu tema, yüksek kontrast.\nProfesyonel ve güçlü bir his.",
-          trustLine: "Şifreleme + güvenli oturum + rate limit koruması.",
-          useGlass: false,
-          blobOpacityA: 0.06,
-          blobOpacityB: 0.05,
-          snackColor: const Color(0xFF111827),
-        );
-    }
   }
 }

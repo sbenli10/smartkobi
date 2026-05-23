@@ -15,6 +15,7 @@ dependencies:
   supabase_flutter: ^2.5.6
   intl: ^0.18.1
   http: ^1.2.2
+  flutter_dotenv: ^6.0.1
 
   # Charts
   fl_chart: ^0.65.0
@@ -26,7 +27,7 @@ dependencies:
   qr_flutter: ^4.1.0
   mobile_scanner: ^3.5.7
 
-   # CSV Import (STABLE)
+  # CSV Import
   file_picker: ^5.5.0
   csv: ^5.1.1
 
@@ -37,3 +38,17 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+
+  assets:
+    - .env
+    - web/favicon.png
+    - web/icons/Icon-192.png
+    - web/icons/Icon-512.png
+
+  fonts:
+    - family: Inter
+      fonts:
+        - asset: lib/auth/public/fonts/Inter_18pt-Regular.ttf
+          weight: 400
+        - asset: lib/auth/public/fonts/Inter_24pt-Bold.ttf
+          weight: 700

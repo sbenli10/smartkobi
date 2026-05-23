@@ -2,6 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../common/widgets/metric_card.dart';
+import '../../common/widgets/page_scaffold.dart';
+import '../../common/widgets/section_header.dart';
+import '../../common/widgets/smart_card.dart';
+import '../../core/theme/app_colors.dart';
+
 class KpiPage extends StatefulWidget {
   const KpiPage({super.key});
 
@@ -11,11 +17,9 @@ class KpiPage extends StatefulWidget {
 
 class _KpiPageState extends State<KpiPage> {
   final _supabase = Supabase.instance.client;
-  final _currency =
-      NumberFormat.currency(locale: 'tr_TR', symbol: '₺');
+  final _currency = NumberFormat.currency(locale: 'tr_TR', symbol: '₺');
 
   bool _loading = true;
-
   double totalIncome = 0;
   double totalExpense = 0;
   double unpaidInvoices = 0;
@@ -29,7 +33,9 @@ class _KpiPageState extends State<KpiPage> {
 
   Future<String?> _getBusinessId() async {
     final user = _supabase.auth.currentUser;
-    if (user == null) return null;
+    if (user == null) {
+      return null;
+    }
 
     final res = await _supabase
         .from('user_business_roles')
@@ -38,16 +44,17 @@ class _KpiPageState extends State<KpiPage> {
         .limit(1)
         .maybeSingle();
 
-    return res?['business_id'];
-
+    return res?['business_id'] as String?;
   }
 
   Future<void> _loadKpis() async {
     try {
       final businessId = await _getBusinessId();
-      if (businessId == null) return;
+      if (businessId == null) {
+        setState(() => _loading = false);
+        return;
+      }
 
-      // 🔹 Transactions
       final tx = await _supabase
           .from('transactions')
           .select('amount,type')
@@ -56,15 +63,14 @@ class _KpiPageState extends State<KpiPage> {
       double income = 0;
       double expense = 0;
 
-      for (var t in tx) {
-        if (t['type'] == 'income') {
-          income += (t['amount'] as num).toDouble();
+      for (final transaction in tx) {
+        if (transaction['type'] == 'income') {
+          income += (transaction['amount'] as num).toDouble();
         } else {
-          expense += (t['amount'] as num).toDouble();
+          expense += (transaction['amount'] as num).toDouble();
         }
       }
 
-      // 🔹 Unpaid invoices
       final invoices = await _supabase
           .from('invoices')
           .select('total,status')
@@ -72,8 +78,8 @@ class _KpiPageState extends State<KpiPage> {
           .neq('status', 'paid');
 
       double unpaid = 0;
-      for (var i in invoices) {
-        unpaid += (i['total'] as num).toDouble();
+      for (final invoice in invoices) {
+        unpaid += (invoice['total'] as num).toDouble();
       }
 
       setState(() {
@@ -83,7 +89,7 @@ class _KpiPageState extends State<KpiPage> {
         totalTransactions = tx.length;
         _loading = false;
       });
-    } catch (e) {
+    } catch (_) {
       setState(() => _loading = false);
     }
   }
@@ -91,234 +97,133 @@ class _KpiPageState extends State<KpiPage> {
   @override
   Widget build(BuildContext context) {
     final netProfit = totalIncome - totalExpense;
-    final profitMargin =
-        totalIncome == 0 ? 0 : (netProfit / totalIncome) * 100;
-    final averageTransaction =
-        totalTransactions == 0 ? 0 : totalIncome / totalTransactions;
+    final profitMargin = totalIncome == 0 ? 0.0 : (netProfit / totalIncome) * 100;
+    final averageTransaction = totalTransactions == 0 ? 0.0 : totalIncome / totalTransactions;
 
-    String aiComment;
-
-    if (netProfit < 0) {
-      aiComment =
-          "Zarar söz konusu. Gider kalemleri ve maliyet yapısı acilen gözden geçirilmeli.";
-    } else if (unpaidInvoices > totalIncome * 0.3) {
-      aiComment =
-          "Tahsil edilmemiş faturalar yüksek. Nakit akışı riski oluşabilir.";
-    } else if (profitMargin < 15) {
-      aiComment =
-          "Kar marjı düşük. Operasyonel giderler optimize edilmeli.";
-    } else {
-      aiComment =
-          "Finansal performans stabil ve sağlıklı görünüyor.";
-    }
-
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text("KPI & AI Analiz"),
-      ),
-      body: _loading
+    return PageScaffold(
+      title: 'KPI Merkezi',
+      subtitle: 'Temel finansal göstergeleri ve yönetici yorumlarını takip edin.',
+      actions: [
+        IconButton(
+          onPressed: _loading ? null : _loadKpis,
+          icon: const Icon(Icons.refresh),
+          tooltip: 'Yenile',
+        ),
+      ],
+      child: _loading
           ? const Center(child: CircularProgressIndicator())
-          : Padding(
-              padding: const EdgeInsets.all(20),
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  final isWide =
-                      constraints.maxWidth > 900;
-
-                  return SingleChildScrollView(
-                    child: Column(
-                      crossAxisAlignment:
-                          CrossAxisAlignment.start,
-                      children: [
-                        Wrap(
-                          spacing: 20,
-                          runSpacing: 20,
-                          children: [
-                            _kpiCard(
-                              context,
-                              title: "Toplam Gelir",
-                              value:
-                                  _currency.format(totalIncome),
-                              icon: Icons.trending_up,
-                              color: Colors.green,
-                              width: isWide
-                                  ? 260
-                                  : double.infinity,
-                            ),
-                            _kpiCard(
-                              context,
-                              title: "Toplam Gider",
-                              value:
-                                  _currency.format(totalExpense),
-                              icon: Icons.trending_down,
-                              color: Colors.red,
-                              width: isWide
-                                  ? 260
-                                  : double.infinity,
-                            ),
-                            _kpiCard(
-                              context,
-                              title: "Net Kar",
-                              value:
-                                  _currency.format(netProfit),
-                              icon:
-                                  Icons.account_balance,
-                              color: netProfit >= 0
-                                  ? Colors.green
-                                  : Colors.red,
-                              width: isWide
-                                  ? 260
-                                  : double.infinity,
-                            ),
-                            _kpiCard(
-                              context,
-                              title: "Kar Marjı",
-                              value:
-                                  "${profitMargin.toStringAsFixed(1)}%",
-                              icon: Icons.percent,
-                              color: Colors.blue,
-                              width: isWide
-                                  ? 260
-                                  : double.infinity,
-                            ),
-                            _kpiCard(
-                              context,
-                              title:
-                                  "Tahsil Edilmemiş Fatura",
-                              value: _currency
-                                  .format(unpaidInvoices),
-                              icon:
-                                  Icons.warning_amber,
-                              color: Colors.orange,
-                              width: isWide
-                                  ? 260
-                                  : double.infinity,
-                            ),
-                            _kpiCard(
-                              context,
-                              title:
-                                  "Ort. İşlem Tutarı",
-                              value: _currency
-                                  .format(
-                                      averageTransaction),
-                              icon: Icons.bar_chart,
-                              color:
-                                  Colors.deepPurple,
-                              width: isWide
-                                  ? 260
-                                  : double.infinity,
-                            ),
-                          ],
-                        ),
-
-                        const SizedBox(height: 40),
-
-                        Text(
-                          "AI Finansal Analiz",
-                          style: Theme.of(context)
-                              .textTheme
-                              .titleLarge
-                              ?.copyWith(
-                                  fontWeight:
-                                      FontWeight.bold),
-                        ),
-                        const SizedBox(height: 16),
-                        Container(
-                          width: double.infinity,
-                          padding:
-                              const EdgeInsets.all(20),
-                          decoration: BoxDecoration(
-                            borderRadius:
-                                BorderRadius.circular(
-                                    16),
-                            color: Theme.of(context)
-                                .colorScheme
-                                .primary
-                                .withOpacity(0.08),
-                          ),
-                          child: Row(
-                            crossAxisAlignment:
-                                CrossAxisAlignment
-                                    .start,
-                            children: [
-                              Icon(
-                                Icons.auto_awesome,
-                                color: Theme.of(context)
-                                    .colorScheme
-                                    .primary,
-                              ),
-                              const SizedBox(
-                                  width: 12),
-                              Expanded(
-                                child: Text(
-                                  aiComment,
-                                  style:
-                                      const TextStyle(
-                                          fontSize: 15),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
+          : ListView(
+              children: [
+                Wrap(
+                  spacing: 12,
+                  runSpacing: 12,
+                  children: [
+                    SizedBox(
+                      width: 250,
+                      child: MetricCard(
+                        title: 'Toplam Gelir',
+                        value: _currency.format(totalIncome),
+                        icon: Icons.trending_up,
+                        color: AppColors.success,
+                      ),
                     ),
-                  );
-                },
-              ),
+                    SizedBox(
+                      width: 250,
+                      child: MetricCard(
+                        title: 'Toplam Gider',
+                        value: _currency.format(totalExpense),
+                        icon: Icons.trending_down,
+                        color: AppColors.danger,
+                      ),
+                    ),
+                    SizedBox(
+                      width: 250,
+                      child: MetricCard(
+                        title: 'Net Kar',
+                        value: _currency.format(netProfit),
+                        icon: Icons.account_balance_outlined,
+                        color: netProfit >= 0 ? AppColors.gold500 : AppColors.warning,
+                      ),
+                    ),
+                    SizedBox(
+                      width: 250,
+                      child: MetricCard(
+                        title: 'Kar Marjı',
+                        value: '%${profitMargin.toStringAsFixed(1)}',
+                        icon: Icons.percent,
+                        color: AppColors.info,
+                      ),
+                    ),
+                    SizedBox(
+                      width: 250,
+                      child: MetricCard(
+                        title: 'Tahsil Edilmemiş Fatura',
+                        value: _currency.format(unpaidInvoices),
+                        icon: Icons.warning_amber_outlined,
+                        color: AppColors.warning,
+                      ),
+                    ),
+                    SizedBox(
+                      width: 250,
+                      child: MetricCard(
+                        title: 'Ortalama İşlem',
+                        value: _currency.format(averageTransaction),
+                        icon: Icons.bar_chart_outlined,
+                        color: AppColors.gold400,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                SmartCard(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const SectionHeader(
+                        title: 'AI Yönetim Yorumu',
+                        subtitle: 'KPI görünümüne göre üretilen kısa yorum',
+                      ),
+                      const SizedBox(height: 14),
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: AppColors.surfaceAlt,
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        child: Text(
+                          _buildComment(
+                            netProfit: netProfit,
+                            unpaidInvoices: unpaidInvoices,
+                            totalIncome: totalIncome,
+                            profitMargin: profitMargin,
+                          ),
+                          style: Theme.of(context).textTheme.bodyLarge,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
     );
   }
 
-  Widget _kpiCard(
-    BuildContext context, {
-    required String title,
-    required String value,
-    required IconData icon,
-    required Color color,
-    required double width,
+  String _buildComment({
+    required double netProfit,
+    required double unpaidInvoices,
+    required double totalIncome,
+    required double profitMargin,
   }) {
-    return Container(
-      width: width,
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        borderRadius:
-            BorderRadius.circular(18),
-        color: Theme.of(context).cardColor,
-        boxShadow: [
-          BoxShadow(
-            blurRadius: 10,
-            color:
-                Colors.black.withOpacity(0.05),
-            offset: const Offset(0, 6),
-          )
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment:
-            CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(icon, color: color),
-              const SizedBox(width: 8),
-              Text(
-                title,
-                style: const TextStyle(
-                    fontWeight: FontWeight.w600),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.bold,
-              color: color,
-            ),
-          ),
-        ],
-      ),
-    );
+    if (netProfit < 0) {
+      return 'Kârlılık baskı altında. Gider kalemlerini ve düşük marjlı işleri öncelikle gözden geçirin.';
+    }
+    if (unpaidInvoices > totalIncome * 0.3) {
+      return 'Tahsilat yükü yüksek. Nakit akışı riskini azaltmak için cari takip temposunu artırın.';
+    }
+    if (profitMargin < 15) {
+      return 'Kar marjı düşük seyrediyor. Operasyon verimliliği ve fiyatlama stratejisi yeniden değerlendirilmeli.';
+    }
+    return 'Finansal yapı dengeli görünüyor. Büyüme yatırımları için kontrollü alan oluşmuş durumda.';
   }
 }

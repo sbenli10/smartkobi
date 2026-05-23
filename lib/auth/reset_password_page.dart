@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+
 import '../home/home_shell.dart';
 
 class ResetPasswordPage extends StatefulWidget {
@@ -17,7 +18,7 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
     final password = _passwordController.text.trim();
 
     if (password.length < 6) {
-      _showError("Şifre en az 6 karakter olmalı.");
+      _showError('Sifre en az 6 karakter olmalı.');
       return;
     }
 
@@ -28,25 +29,28 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
         UserAttributes(password: password),
       );
 
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text("Şifre başarıyla güncellendi."),
+          content: Text('Şifre başarıyla güncellendi.'),
           backgroundColor: Colors.green,
         ),
       );
 
       await Future.delayed(const Duration(seconds: 1));
+      if (!mounted) {
+        return;
+      }
 
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(
-          builder: (_) => HomeShell(), // const kaldırdık
-        ),
+        MaterialPageRoute(builder: (_) => const HomeShell()),
       );
-    } catch (e) {
-      _showError("Şifre güncellenemedi.");
+    } catch (_) {
+      _showError('Şifre güncellendi.');
     }
 
     if (mounted) {
@@ -70,7 +74,7 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               const Text(
-                "Yeni Şifre Oluştur",
+                'Yeni Sifre Olustur',
                 style: TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.bold,
@@ -81,7 +85,7 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
                 controller: _passwordController,
                 obscureText: true,
                 decoration: const InputDecoration(
-                  labelText: "Yeni Şifre",
+                  labelText: 'Yeni Sifre',
                 ),
               ),
               const SizedBox(height: 20),
@@ -89,7 +93,7 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
                 onPressed: _loading ? null : _updatePassword,
                 child: _loading
                     ? const CircularProgressIndicator()
-                    : const Text("Şifreyi Güncelle"),
+                    : const Text('Sifreyi Guncelle'),
               ),
             ],
           ),
