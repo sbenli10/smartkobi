@@ -428,6 +428,23 @@ class _ReminderCard extends StatelessWidget {
             spacing: 10,
             runSpacing: 10,
             children: [
+              // Customer Detail Page (Müşteri Detay Sayfası) içinde örnek kullanım:
+              OutlinedButton.icon(
+                onPressed: () {
+                  showModalBottomSheet(
+                    context: context,
+                    isScrollControlled: true,
+                    backgroundColor: Colors.transparent,
+                    builder: (_) => CollectionReminderSheet(
+                      customer: _customer!, // Mevcut müşteri modeli
+                      totalAmount: _customer!.balance, // veya sadece geciken tutar
+                    ),
+                  );
+                },
+                icon: const Icon(Icons.chat_bubble_outline, color: AppColors.success),
+                label: const Text('Tahsilat Mesajı', style: TextStyle(color: AppColors.success)),
+                style: OutlinedButton.styleFrom(side: const BorderSide(color: AppColors.success)),
+              ),
               OutlinedButton.icon(
                 onPressed: () => onCopy(whatsappText, 'WhatsApp metni panoya kopyalandı.'),
                 icon: const Icon(Icons.chat_outlined, color: AppColors.gold500),

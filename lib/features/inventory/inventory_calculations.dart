@@ -50,7 +50,7 @@ String generateInventoryAiInsight(List<InventoryItemModel> items) {
     return 'Ürünlerinizi eklediğinizde SmartKOBİ kritik stok, kâr marjı ve sipariş önerilerini analiz eder.';
   }
   if (items.any((item) => item.isCriticalStock)) {
-    return 'Bazı ürünler kritik stok seviyesine yaklaşmış. Yeniden sipariş planı oluşturmanız önerilir.';
+    return 'Bazı ürünler minimum stok seviyesine ulaşmış veya altına düşmüş. Yeniden sipariş planı oluşturmanız önerilir.';
   }
   if (items.any((item) => item.isOutOfStock)) {
     return 'Stokta olmayan ürünler satış kaybına neden olabilir.';

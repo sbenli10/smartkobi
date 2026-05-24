@@ -8,7 +8,7 @@ import '../features/business_profile/business_profile_page.dart';
 import '../features/customers/customers_page.dart';
 import '../features/dashboard/dashboard_page.dart';
 import '../features/documents/documents_page.dart';
-import '../features/inventory/inventory_page.dart';
+import 'package:smartkobi/features/inventory/inventory_page.dart';
 import '../features/kpi/kpi_page.dart';
 import '../features/notifications/notifications_page.dart';
 import '../features/reports/reports_page.dart';
@@ -102,13 +102,14 @@ class _HomeShellState extends State<HomeShell> {
         group: 'İşletme',
         showInBottomNav: true,
       ),
-      const SmartKobiNavItem(
+
+     SmartKobiNavItem( // <-- Baştaki const kaldırıldı
         id: 'inventory',
         label: 'Stok',
         description: 'Ürünler, hareketler ve kritik stok',
         icon: Icons.inventory_2_outlined,
         selectedIcon: Icons.inventory_2,
-        page: InventoryPage(),
+        page: InventoryPage(), // <-- Burada const yok
         group: 'İşletme',
         showInBottomNav: true,
       ),

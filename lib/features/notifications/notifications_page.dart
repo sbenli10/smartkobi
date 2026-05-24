@@ -11,7 +11,7 @@ import '../ai/cashflow_page.dart';
 import '../business_profile/business_profile_page.dart';
 import '../customers/customers_page.dart';
 import '../documents/documents_page.dart';
-import '../inventory/inventory_page.dart';
+import 'package:smartkobi/features/inventory/inventory_page.dart';
 import '../reports/reports_page.dart';
 import '../support/support_analysis_page.dart';
 import '../transactions/transactions_page.dart';
@@ -190,7 +190,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
       case 'customers':
         return const CustomersPage();
       case 'inventory':
-        return const InventoryPage();
+      return InventoryPage();
       case 'cashflow':
         return const CashflowPage();
       case 'documents':

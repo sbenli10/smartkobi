@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../receipt_scanner/receipt_scanner_page.dart';
+
 import '../../common/widgets/page_scaffold.dart';
-import '../../common/widgets/section_header.dart';
 import '../../common/widgets/smart_card.dart';
 import '../../core/theme/app_colors.dart';
 import '../../data/models/business_context_summary_model.dart';
@@ -19,13 +18,10 @@ import '../ai/ai_chat_page.dart';
 import '../ai/cashflow_page.dart';
 import '../auth/login_page.dart';
 import '../business_profile/business_profile_page.dart';
-import '../cashflow/cashflow_calculations.dart';
 import '../customers/customers_page.dart';
 import '../documents/documents_page.dart';
-import '../inventory/inventory_page.dart';
-import '../notifications/notifications_page.dart';
-import '../reports/reports_page.dart';
-import '../support/support_analysis_page.dart';
+import 'package:smartkobi/features/inventory/inventory_page.dart';
+import '../receipt_scanner/receipt_scanner_page.dart';
 import '../transactions/transactions_page.dart';
 import 'dashboard_daily_action_engine.dart';
 import 'dashboard_summary_model.dart';
@@ -44,30 +40,18 @@ class _DashboardPageState extends State<DashboardPage> {
   final _cashflowRepository = CashflowRepository();
   final _notificationsRepository = NotificationsRepository();
   final _currency = NumberFormat.currency(locale: 'tr_TR', symbol: 'TL ');
-  final _expenseAmountController = TextEditingController();
-  final _expenseDescriptionController = TextEditingController();
 
   bool _loading = true;
   String? _errorMessage;
   BusinessContextSummaryModel _contextSummary = BusinessContextSummaryModel.empty();
   BusinessProfileModel? _businessProfile;
   DashboardSummary? _summary;
-  NotificationSummaryModel _notificationSummary = NotificationSummaryModel.empty();
-  CashflowProjectionModel? _projection;
   List<DashboardDailyAction> _dailyActions = const [];
-  _QuickDecisionResult? _decisionResult;
 
   @override
   void initState() {
     super.initState();
     _load();
-  }
-
-  @override
-  void dispose() {
-    _expenseAmountController.dispose();
-    _expenseDescriptionController.dispose();
-    super.dispose();
   }
 
   Future<void> _load() async {
@@ -84,29 +68,19 @@ class _DashboardPageState extends State<DashboardPage> {
 
       final contextSummary = await _contextService.buildContextSummary();
       final businessProfile = await _businessProfileRepository.fetchMyBusinessProfile();
+      
       try {
         await _notificationsRepository.generateAndSaveSmartReminders();
       } catch (_) {}
-      NotificationSummaryModel notificationSummary;
-      try {
-        notificationSummary = await _notificationsRepository.fetchNotificationSummary();
-      } catch (_) {
-        notificationSummary = NotificationSummaryModel.empty();
-      }
 
       DocumentSummary documentsSummary;
       try {
         documentsSummary = await _documentsRepository.buildDocumentSummary();
       } catch (_) {
         documentsSummary = const DocumentSummary(
-          totalDocuments: 0,
-          missingRequirements: 0,
-          expiredDocuments: 0,
-          willExpireDocuments: 0,
-          uploadedDocuments: 0,
-          highPriorityMissing: 0,
-          supportReadyScore: 0,
-          insight: '',
+          totalDocuments: 0, missingRequirements: 0, expiredDocuments: 0,
+          willExpireDocuments: 0, uploadedDocuments: 0, highPriorityMissing: 0,
+          supportReadyScore: 0, insight: '',
         );
       }
 
@@ -125,9 +99,7 @@ class _DashboardPageState extends State<DashboardPage> {
           DateTime(now.year, now.month, now.day).add(const Duration(days: 7)),
         );
         for (final entry in entries) {
-          if (entry.isOutflow && !entry.isPaid) {
-            upcomingPayments7d += entry.amount;
-          }
+          if (entry.isOutflow && !entry.isPaid) upcomingPayments7d += entry.amount;
         }
       } catch (_) {}
 
@@ -148,374 +120,129 @@ class _DashboardPageState extends State<DashboardPage> {
         highPriorityMissingDocuments: contextSummary.highPriorityMissingDocuments,
         supportScore: contextSummary.supportOverallScore,
         profileCompletion: businessProfile?.profileCompletion ?? contextSummary.profileCompletion,
-        totalDocuments: contextSummary.totalDocuments > 0
-            ? contextSummary.totalDocuments
-            : documentsSummary.totalDocuments,
-        expiredDocumentsCount: contextSummary.expiredDocumentsCount > 0
-            ? contextSummary.expiredDocumentsCount
-            : documentsSummary.expiredDocuments,
-        hasAnyBusinessData: _hasAnyBusinessData(
-          contextSummary: contextSummary,
-          profile: businessProfile,
-          documentsSummary: documentsSummary,
-          projection: projection,
-        ),
+        totalDocuments: contextSummary.totalDocuments > 0 ? contextSummary.totalDocuments : documentsSummary.totalDocuments,
+        expiredDocumentsCount: contextSummary.expiredDocumentsCount > 0 ? contextSummary.expiredDocumentsCount : documentsSummary.expiredDocuments,
+        hasAnyBusinessData: _hasAnyBusinessData(contextSummary, businessProfile, documentsSummary, projection),
       );
 
-      if (!mounted) {
-        return;
-      }
+      if (!mounted) return;
 
       setState(() {
         _contextSummary = contextSummary;
         _businessProfile = businessProfile;
-        _projection = projection;
         _summary = summary;
-        _notificationSummary = notificationSummary;
         _dailyActions = buildDailyActions(summary);
         _loading = false;
       });
     } catch (error) {
-      if (!mounted) {
-        return;
-      }
+      if (!mounted) return;
       setState(() {
         _loading = false;
-        _errorMessage =
-            'Ana sayfa verileri alınamadı. Lütfen bağlantınızı kontrol edin.\n$error';
+        _errorMessage = 'Ana sayfa verileri alınamadı.\n$error';
       });
     }
   }
 
+  bool _hasAnyBusinessData(BusinessContextSummaryModel ctx, BusinessProfileModel? prof, DocumentSummary doc, CashflowProjectionModel? proj) {
+    return ctx.hasFinancialData || ctx.pendingReceivables > 0 || ctx.criticalStockCount > 0 || 
+           doc.totalDocuments > 0 || (prof?.profileCompletion ?? 0) > 0 || proj != null;
+  }
+
   Future<void> _logout() async {
     await Supabase.instance.client.auth.signOut();
-    if (!mounted) {
-      return;
-    }
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (_) => const LoginPagePremium()),
-    );
+    if (!mounted) return;
+    Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const LoginPagePremium()));
   }
 
-  void _openTransactions() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => const TransactionsPage()),
-    );
-  }
-
-  void _openCustomers() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => const CustomersPage()),
-    );
-  }
-
-  void _openInventory() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => const InventoryPage()),
-    );
-  }
-
-  void _openAiChat() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => const AiChatPage()),
-    );
-  }
-
-  void _openBusinessProfile() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => const BusinessProfilePage()),
-    );
-  }
-
-  void _openSupportAnalysis() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => const SupportAnalysisPage()),
-    );
-  }
-
-  void _openDocuments() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => const DocumentsPage()),
-    );
-  }
-
-  void _openCashflow() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => const CashflowPage()),
-    );
-  }
-
-  void _openReports([String? reportType]) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => ReportsPage(initialReportType: reportType),
-      ),
-    );
-  }
-
-  void _openNotifications() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => const NotificationsPage()),
-    );
-  }
+  // --- Routing Methods ---
+  void _openPage(Widget page) => Navigator.push(context, MaterialPageRoute(builder: (_) => page));
 
   void _handleActionTap(String module) {
     switch (module) {
-      case 'customers':
-        _openCustomers();
-        break;
-      case 'cashflow':
-        _openCashflow();
-        break;
-      case 'inventory':
-        _openInventory();
-        break;
-      case 'documents':
-        _openDocuments();
-        break;
-      case 'profile':
-        _openBusinessProfile();
-        break;
-      case 'advisor':
-        _openAiChat();
-        break;
-      case 'support':
-        _openSupportAnalysis();
-        break;
-      default:
-        _openTransactions();
+      case 'customers': _openPage(const CustomersPage()); break;
+      case 'cashflow': _openPage(const CashflowPage()); break;
+      case 'inventory': _openPage(InventoryPage()); break;   
+      case 'documents': _openPage(const DocumentsPage()); break;
+      case 'profile': _openPage(const BusinessProfilePage()); break;
+      case 'advisor': _openPage(const AiChatPage()); break;
+      default: _openPage(const TransactionsPage());
     }
-  }
-
-  void _runQuickDecision() {
-    final summary = _summary;
-    if (summary == null) {
-      return;
-    }
-    final amount = double.tryParse(
-      _expenseAmountController.text.trim().replaceAll(',', '.'),
-    );
-    if (amount == null || amount <= 0) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Lütfen 0’dan büyük bir tutar girin.')),
-      );
-      return;
-    }
-
-    late final String riskLevel;
-    late final String title;
-    late final String description;
-
-    if (_projection != null) {
-      final analysis = analyzeExpenseScenario(
-        title: _expenseDescriptionController.text.trim().isEmpty
-            ? 'Planlanan harcama'
-            : _expenseDescriptionController.text.trim(),
-        plannedExpenseAmount: amount,
-        plannedExpenseDate: DateTime.now(),
-        openingBalance: _projection!.openingBalance,
-        projection: _projection!,
-      );
-
-      if (analysis.riskLevel == 'critical' || analysis.riskLevel == 'high') {
-        riskLevel = 'Yüksek risk';
-        title = 'Önce tahsilatları netleştirin';
-      } else if (analysis.riskLevel == 'medium') {
-        riskLevel = 'Orta risk';
-        title = 'Dikkatle ilerleyin';
-      } else {
-        riskLevel = 'Düşük risk';
-        title = 'Harcama yönetilebilir görünüyor';
-      }
-      description = '${analysis.resultSummary} ${analysis.recommendation}'.trim();
-    } else {
-      final effectiveScore = summary.cashScore;
-      final effectiveNetCash = summary.expectedInflow30d - summary.expectedOutflow30d;
-      final adjustedScore =
-          (effectiveScore - (amount > 25000 ? 30 : amount > 10000 ? 18 : 8)).clamp(0, 100);
-      final adjustedNetCash = effectiveNetCash - amount;
-
-      if (adjustedScore < 40 || adjustedNetCash < 0) {
-        riskLevel = 'Yüksek risk';
-        title = 'Önce tahsilatları netleştirin';
-        description =
-            'Bu harcama mevcut nakit görünümüne göre baskı oluşturabilir. Önce bekleyen tahsilatları kontrol etmeniz önerilir.';
-      } else if (adjustedScore < 60) {
-        riskLevel = 'Orta risk';
-        title = 'Dikkatle ilerleyin';
-        description =
-            'Bu harcama orta riskli görünüyor. Ödeme tarihini ve kısa vadeli tahsilatları birlikte gözden geçirmeniz iyi olur.';
-      } else {
-        riskLevel = 'Düşük risk';
-        title = 'Harcama yönetilebilir görünüyor';
-        description =
-            'Mevcut görünümde bu harcama yönetilebilir duruyor. Yine de önümüzdeki 30 günlük ödemeleri takip etmeyi sürdürün.';
-      }
-    }
-
-    setState(() {
-      _decisionResult = _QuickDecisionResult(
-        title: title,
-        riskLevel: riskLevel,
-        description: description,
-      );
-    });
   }
 
   @override
   Widget build(BuildContext context) {
     return PageScaffold(
       title: 'Bugünkü İş Planınız',
-      subtitle:
-          'Öncelikli tahsilat, ödeme, stok ve nakit uyarılarınızı tek ekranda görün.',
+      subtitle: 'SmartKOBİ, bugün öncelik vermeniz gereken işleri sizin için özetler.',
       actions: [
-        IconButton(
-          onPressed: _loading ? null : _load,
-          tooltip: 'Yenile',
-          icon: const Icon(Icons.refresh, color: AppColors.textPrimary),
-        ),
-        IconButton(
-          onPressed: _logout,
-          tooltip: 'Çıkış Yap',
-          icon: const Icon(Icons.logout, color: AppColors.textPrimary),
-        ),
+        IconButton(onPressed: _loading ? null : _load, icon: const Icon(Icons.refresh, color: AppColors.textPrimary), tooltip: 'Yenile'),
+        IconButton(onPressed: _logout, icon: const Icon(Icons.logout, color: AppColors.textPrimary), tooltip: 'Çıkış Yap'),
       ],
       child: _loading
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(child: CircularProgressIndicator(color: AppColors.primaryNavy))
           : _errorMessage != null
-              ? _DashboardError(message: _errorMessage!, onRetry: _load)
+              ? _buildErrorState()
               : _buildContent(),
     );
   }
 
   Widget _buildContent() {
     final summary = _summary!;
-    final showOnboarding = summary.shouldShowOnboarding;
-
+    
     return LayoutBuilder(
       builder: (context, constraints) {
-        final isWide = constraints.maxWidth >= 1100;
-
-        final left = [
-          _TodayHero(
-            summary: summary,
-            businessName: _businessProfile?.businessName ?? _contextSummary.businessName,
-          ),
-          const SizedBox(height: 16),
-          if (showOnboarding)
-            _OnboardingCard(
-              onIncome: _openTransactions,
-              onCustomer: _openCustomers,
-              onProduct: _openInventory,
-            )
-          else
-            _DailyActionsCard(
-              actions: _dailyActions,
-              onActionTap: _handleActionTap,
-            ),
-          const SizedBox(height: 16),
-          _FinanceStrip(
-            summary: summary,
-            currency: _currency,
-          ),
-          const SizedBox(height: 16),
-          _ReceivablePaymentRow(
-            summary: summary,
-            currency: _currency,
-            onCustomers: _openCustomers,
-            onCashflow: _openCashflow,
-          ),
-          const SizedBox(height: 16),
-          _StockAlertsCard(
-            summary: summary,
-            onOpenInventory: _openInventory,
-          ),
-        ];
-
-        final right = [
-          _QuickDecisionCard(
-            amountController: _expenseAmountController,
-            descriptionController: _expenseDescriptionController,
-            result: _decisionResult,
-            onCheck: _runQuickDecision,
-            onDetailedAnalysis: _openCashflow,
-          ),
-          const SizedBox(height: 16),
-          _DailyCommentaryCard(text: summary.dailySummaryText),
-          const SizedBox(height: 16),
-          _DocumentSupportCard(
-            summary: summary,
-            onOpenDocuments: _openDocuments,
-            onOpenSupport: _openSupportAnalysis,
-            onOpenProfile: _openBusinessProfile,
-          ),
-          const SizedBox(height: 16),
-          _ReportsOverviewCard(
-            latestReportType: _contextSummary.latestReportType,
-            latestReportSummary: _contextSummary.latestReportSummary,
-            onOpenReports: _openReports,
-          ),
-          const SizedBox(height: 16),
-          _NotificationsOverviewCard(
-            summary: _notificationSummary,
-            onOpenNotifications: _openNotifications,
-            onRefreshReminders: _load,
-          ),
-          const SizedBox(height: 16),
-          _QuickActionsCard(
-            onIncome: _openTransactions,
-            onExpense: _openTransactions,
-            onCustomer: _openCustomers,
-            onProduct: _openInventory,
-            onCashflow: _openCashflow,
-            onDocuments: _openDocuments,
-            onAdvisor: _openAiChat,
-          ),
-        ];
-
-        if (isWide) {
-          return SingleChildScrollView(
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  flex: 3,
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: left,
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  flex: 2,
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: right,
-                  ),
-                ),
-              ],
-            ),
-          );
-        }
+        final isWide = constraints.maxWidth >= 900;
 
         return SingleChildScrollView(
           child: Column(
-            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              ...left,
-              const SizedBox(height: 16),
-              ...right,
+              _DashboardHeroCard(summary: summary),
+              const SizedBox(height: 24),
+              
+              if (isWide)
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      flex: 6,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildPrioritiesSection(summary),
+                          const SizedBox(height: 24),
+                          _FinanceSummarySection(summary: summary, currency: _currency),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 24),
+                    Expanded(
+                      flex: 4,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _QuickActionsGrid(onOpen: _handleActionTap, onOpenScanner: () => _openPage(const ReceiptScannerPage())),
+                          const SizedBox(height: 24),
+                          _WarningSection(summary: summary, onAction: _handleActionTap),
+                          const SizedBox(height: 24),
+                          _SmartKobiCommentCard(text: summary.dailySummaryText),
+                        ],
+                      ),
+                    ),
+                  ],
+                )
+              else ...[
+                _buildPrioritiesSection(summary),
+                const SizedBox(height: 24),
+                _QuickActionsGrid(onOpen: _handleActionTap, onOpenScanner: () => _openPage(const ReceiptScannerPage())),
+                const SizedBox(height: 24),
+                _FinanceSummarySection(summary: summary, currency: _currency),
+                const SizedBox(height: 24),
+                _WarningSection(summary: summary, onAction: _handleActionTap),
+                const SizedBox(height: 24),
+                _SmartKobiCommentCard(text: summary.dailySummaryText),
+                const SizedBox(height: 40),
+              ]
             ],
           ),
         );
@@ -523,124 +250,106 @@ class _DashboardPageState extends State<DashboardPage> {
     );
   }
 
-  bool _hasAnyBusinessData({
-    required BusinessContextSummaryModel contextSummary,
-    required BusinessProfileModel? profile,
-    required DocumentSummary documentsSummary,
-    required CashflowProjectionModel? projection,
-  }) {
-    return contextSummary.hasFinancialData ||
-        contextSummary.pendingReceivables > 0 ||
-        contextSummary.overdueReceivables > 0 ||
-        contextSummary.criticalStockCount > 0 ||
-        documentsSummary.totalDocuments > 0 ||
-        documentsSummary.missingRequirements > 0 ||
-        (profile?.profileCompletion ?? 0) > 0 ||
-        projection != null;
+  Widget _buildPrioritiesSection(DashboardSummary summary) {
+    if (summary.shouldShowOnboarding) {
+      return _EmptyDashboardState(
+        onIncome: () => _handleActionTap('transactions'),
+        onCustomer: () => _handleActionTap('customers'),
+        onProduct: () => _handleActionTap('inventory'),
+      );
+    }
+    return _DailyPrioritiesSection(
+      actions: _dailyActions,
+      onActionTap: _handleActionTap,
+    );
+  }
+
+  Widget _buildErrorState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(Icons.error_outline, size: 48, color: AppColors.danger),
+          const SizedBox(height: 16),
+          Text('Veriler alınamadı', style: Theme.of(context).textTheme.titleLarge),
+          const SizedBox(height: 8),
+          Text(_errorMessage ?? '', textAlign: TextAlign.center, style: Theme.of(context).textTheme.bodyMedium),
+          const SizedBox(height: 24),
+          ElevatedButton(onPressed: _load, child: const Text('Tekrar Dene')),
+        ],
+      ),
+    );
   }
 }
 
-class _TodayHero extends StatelessWidget {
-  const _TodayHero({
-    required this.summary,
-    this.businessName,
-  });
+// ============================================================================
+// WIDGETS: CLEAN, MODULAR, AND ACTION-ORIENTED
+// ============================================================================
 
+class _DashboardHeroCard extends StatelessWidget {
+  const _DashboardHeroCard({required this.summary});
   final DashboardSummary summary;
-  final String? businessName;
 
   @override
   Widget build(BuildContext context) {
-    final badgeColor = _riskColor(summary.overallRiskLevel);
-    return SmartCard(
+    final riskLevel = summary.overallRiskLevel;
+    Color badgeColor = AppColors.primaryNavy;
+    
+    if (riskLevel == 'Acil' || riskLevel == 'Yüksek risk') badgeColor = AppColors.danger;
+    else if (riskLevel == 'Dikkat' || riskLevel == 'Riskli') badgeColor = AppColors.warning;
+    else if (riskLevel == 'Güvenli') badgeColor = AppColors.success;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColors.border),
+      ),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                Text('İyi Çalışmalar!', style: Theme.of(context).textTheme.titleLarge?.copyWith(color: AppColors.textPrimary)),
+                const SizedBox(height: 6),
                 Text(
-                  businessName?.trim().isNotEmpty == true
-                      ? '$businessName için günlük görünüm'
-                      : 'SmartKOBİ günlük görünümü',
-                  style: Theme.of(context).textTheme.titleLarge,
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'SmartKOBİ, işletmenizde bugün öncelik vermeniz gereken konuları özetler.',
-                  style: Theme.of(context).textTheme.bodyLarge,
+                  summary.shouldShowOnboarding 
+                    ? 'İlk kayıtlarınızı ekleyerek günlük planınızı oluşturmaya başlayın.'
+                    : 'Bugün önceliğinizi tahsilatlar ve nakit yönetimine vermeniz önerilir.',
+                  style: Theme.of(context).textTheme.bodyMedium,
                 ),
               ],
             ),
           ),
           const SizedBox(width: 16),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             decoration: BoxDecoration(
               color: badgeColor.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(999),
-              border: Border.all(color: badgeColor.withValues(alpha: 0.2)),
             ),
-            child: Text(
-              summary.overallRiskLevel,
-              style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                    color: badgeColor,
-                    fontWeight: FontWeight.w700,
-                  ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _DailyActionsCard extends StatelessWidget {
-  const _DailyActionsCard({
-    required this.actions,
-    required this.onActionTap,
-  });
-
-  final List<DashboardDailyAction> actions;
-  final ValueChanged<String> onActionTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return SmartCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const SectionHeader(
-            title: 'Bugün Öncelik Verilecekler',
-            subtitle: 'Bugünün en önemli tahsilat, ödeme, stok ve belge aksiyonları',
-          ),
-          const SizedBox(height: 14),
-          if (actions.isEmpty)
-            const Text('Bugün öne çıkan kritik bir aksiyon görünmüyor.')
-          else
-            ...actions.map(
-              (action) => Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: _DailyActionTile(
-                  action: action,
-                  onTap: () => onActionTap(action.module),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.lens, size: 10, color: badgeColor),
+                const SizedBox(width: 8),
+                Text(
+                  'Durum: $riskLevel',
+                  style: TextStyle(color: badgeColor, fontWeight: FontWeight.w700, fontSize: 13),
                 ),
-              ),
+              ],
             ),
+          ),
         ],
       ),
     );
   }
 }
 
-class _OnboardingCard extends StatelessWidget {
-  const _OnboardingCard({
-    required this.onIncome,
-    required this.onCustomer,
-    required this.onProduct,
-  });
-
+class _EmptyDashboardState extends StatelessWidget {
+  const _EmptyDashboardState({required this.onIncome, required this.onCustomer, required this.onProduct});
   final VoidCallback onIncome;
   final VoidCallback onCustomer;
   final VoidCallback onProduct;
@@ -651,35 +360,25 @@ class _OnboardingCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'SmartKOBİ günlük iş planınızı hazırlamak için birkaç kayıt gerekiyor.',
-            style: Theme.of(context).textTheme.titleMedium,
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Gelir-gider, müşteri, stok ve nakit kayıtlarınızı ekledikçe bugün neye öncelik vermeniz gerektiğini burada göreceksiniz.',
-            style: Theme.of(context).textTheme.bodyMedium,
-          ),
-          const SizedBox(height: 14),
-          Wrap(
-            spacing: 10,
-            runSpacing: 10,
+          Row(
             children: [
-              ElevatedButton.icon(
-                onPressed: onIncome,
-                icon: const Icon(Icons.add_chart),
-                label: const Text('İlk Gelir/Gider Kaydını Ekle'),
-              ),
-              OutlinedButton.icon(
-                onPressed: onCustomer,
-                icon: const Icon(Icons.person_add_alt_1),
-                label: const Text('İlk Müşteriyi Ekle'),
-              ),
-              OutlinedButton.icon(
-                onPressed: onProduct,
-                icon: const Icon(Icons.add_box_outlined),
-                label: const Text('İlk Ürünü Ekle'),
-              ),
+              const Icon(Icons.rocket_launch_outlined, color: AppColors.primaryNavy, size: 28),
+              const SizedBox(width: 12),
+              Expanded(child: Text('SmartKOBİ’ye Hoş Geldiniz', style: Theme.of(context).textTheme.titleLarge)),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'Günlük iş planınızı ve akıllı analizleri görebilmek için temel işletme verilerinizi oluşturmanız gerekiyor. Aşağıdaki adımlarla başlayabilirsiniz.',
+            style: Theme.of(context).textTheme.bodyLarge?.copyWith(height: 1.5),
+          ),
+          const SizedBox(height: 24),
+          Wrap(
+            spacing: 12, runSpacing: 12,
+            children: [
+              ElevatedButton.icon(onPressed: onIncome, icon: const Icon(Icons.add), label: const Text('İlk Gelir/Gideri Ekle')),
+              OutlinedButton.icon(onPressed: onCustomer, icon: const Icon(Icons.person_add), label: const Text('Müşteri Ekle')),
+              OutlinedButton.icon(onPressed: onProduct, icon: const Icon(Icons.inventory_2), label: const Text('Ürün Ekle')),
             ],
           ),
         ],
@@ -688,18 +387,208 @@ class _OnboardingCard extends StatelessWidget {
   }
 }
 
-class _DailyActionTile extends StatelessWidget {
-  const _DailyActionTile({
-    required this.action,
-    required this.onTap,
-  });
+class _DailyPrioritiesSection extends StatelessWidget {
+  const _DailyPrioritiesSection({required this.actions, required this.onActionTap});
+  final List<DashboardDailyAction> actions;
+  final ValueChanged<String> onActionTap;
 
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Bugün Öncelik Verilecekler', style: Theme.of(context).textTheme.titleLarge),
+        const SizedBox(height: 16),
+        if (actions.isEmpty)
+          const SmartCard(child: Text('Bugün için acil bir aksiyon veya öncelik görünmüyor.'))
+        else
+          ...actions.take(4).map((action) => Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: _DailyActionCard(action: action, onTap: () => onActionTap(action.module)),
+          )),
+      ],
+    );
+  }
+}
+
+class _DailyActionCard extends StatelessWidget {
+  const _DailyActionCard({required this.action, required this.onTap});
   final DashboardDailyAction action;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    final riskColor = _riskColor(action.riskLevel == 'high' ? 'Acil' : 'Dikkat');
+    final isHigh = action.riskLevel == 'high';
+    final color = isHigh ? AppColors.danger : AppColors.warning;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                Container(
+                  height: 48, width: 48,
+                  decoration: BoxDecoration(color: color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12)),
+                  child: Icon(action.icon, color: color),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(action.title, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: AppColors.textPrimary)),
+                      const SizedBox(height: 4),
+                      Text(action.description, style: const TextStyle(fontSize: 13, color: AppColors.textSecondary)),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Icon(Icons.chevron_right, color: AppColors.textMuted),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _QuickActionsGrid extends StatelessWidget {
+  const _QuickActionsGrid({required this.onOpen, required this.onOpenScanner});
+  final ValueChanged<String> onOpen;
+  final VoidCallback onOpenScanner;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Hızlı İşlemler', style: Theme.of(context).textTheme.titleLarge),
+        const SizedBox(height: 16),
+        Wrap(
+          spacing: 12, runSpacing: 12,
+          children: [
+            _QuickActionBtn('Gelir/Gider', Icons.add_chart, () => onOpen('transactions')),
+            _QuickActionBtn('Fiş Tara', Icons.document_scanner, onOpenScanner, isFeatured: true),
+            _QuickActionBtn('Müşteri Ekle', Icons.person_add, () => onOpen('customers')),
+            _QuickActionBtn('Nakit Kaydı', Icons.waterfall_chart, () => onOpen('cashflow')),
+            _QuickActionBtn('Belge Yükle', Icons.upload_file, () => onOpen('documents')),
+            _QuickActionBtn('Yapay Zeka', Icons.smart_toy, () => onOpen('advisor')),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _QuickActionBtn extends StatelessWidget {
+  const _QuickActionBtn(this.label, this.icon, this.onTap, {this.isFeatured = false});
+  final String label;
+  final IconData icon;
+  final VoidCallback onTap;
+  final bool isFeatured;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        width: 104,
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+        decoration: BoxDecoration(
+          color: isFeatured ? AppColors.primaryNavySoft : AppColors.surface,
+          border: Border.all(color: isFeatured ? AppColors.primaryNavy.withValues(alpha: 0.3) : AppColors.border),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, color: AppColors.primaryNavy, size: 22),
+            const SizedBox(height: 8),
+            Text(
+              label, 
+              textAlign: TextAlign.center, 
+              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _FinanceSummarySection extends StatelessWidget {
+  const _FinanceSummarySection({required this.summary, required this.currency});
+  final DashboardSummary summary;
+  final NumberFormat currency;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Kısa Finans Özeti', style: Theme.of(context).textTheme.titleLarge),
+        const SizedBox(height: 16),
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final width = (constraints.maxWidth - 36) / 4;
+            final isMobile = constraints.maxWidth < 600;
+            final cardWidth = isMobile ? (constraints.maxWidth - 12) / 2 : width;
+            
+            return Wrap(
+              spacing: 12, runSpacing: 12,
+              children: [
+                SizedBox(width: cardWidth, child: _MiniStat('Aylık Gelir', currency.format(summary.monthlyIncome), AppColors.success)),
+                SizedBox(width: cardWidth, child: _MiniStat('Aylık Gider', currency.format(summary.monthlyExpense), AppColors.danger)),
+                SizedBox(width: cardWidth, child: _MiniStat('Net Kâr/Zarar', currency.format(summary.netProfit), summary.netProfit >= 0 ? AppColors.primaryNavy : AppColors.warning)),
+                SizedBox(width: cardWidth, child: _MiniStat('Nakit Skoru', '${summary.cashScore}/100', AppColors.primaryNavy)),
+              ],
+            );
+          },
+        ),
+        const SizedBox(height: 12),
+        // Alt Bilgi Satırı
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(color: AppColors.surfaceAlt, borderRadius: BorderRadius.circular(12)),
+          child: Row(
+            children: [
+              const Icon(Icons.insights, size: 18, color: AppColors.textSecondary),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Bekleyen tahsilat: ${currency.format(summary.pendingReceivables)} • Yaklaşan ödeme: ${currency.format(summary.upcomingPayments7d)}',
+                  style: const TextStyle(fontSize: 13, color: AppColors.textSecondary, fontWeight: FontWeight.w500),
+                  maxLines: 1, overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _MiniStat extends StatelessWidget {
+  const _MiniStat(this.label, this.value, this.color);
+  final String label;
+  final String value;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -710,53 +599,11 @@ class _DailyActionTile extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Container(
-                height: 42,
-                width: 42,
-                decoration: BoxDecoration(
-                  color: riskColor.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(action.icon, color: riskColor),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(action.title, style: Theme.of(context).textTheme.titleMedium),
-                    const SizedBox(height: 4),
-                    Text(
-                      '${action.category} • ${action.priority == 'high' ? 'Öncelikli' : 'Takip'}',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: AppColors.textSecondary,
-                          ),
-                    ),
-                  ],
-                ),
-              ),
-              _RiskBadge(label: action.riskLevel == 'high' ? 'Yüksek' : 'Orta', color: riskColor),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Text(action.description, style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: AppColors.textPrimary)),
+          Text(label, style: const TextStyle(fontSize: 12, color: AppColors.textSecondary, fontWeight: FontWeight.w600)),
           const SizedBox(height: 8),
-          Text(
-            action.recommendation,
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: AppColors.textSecondary,
-                ),
-          ),
-          const SizedBox(height: 12),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: OutlinedButton.icon(
-              onPressed: onTap,
-              icon: const Icon(Icons.arrow_forward_rounded),
-              label: Text(action.actionLabel),
-            ),
+          FittedBox(
+            fit: BoxFit.scaleDown, alignment: Alignment.centerLeft,
+            child: Text(value, style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: color)),
           ),
         ],
       ),
@@ -764,828 +611,77 @@ class _DailyActionTile extends StatelessWidget {
   }
 }
 
-class _QuickDecisionCard extends StatelessWidget {
-  const _QuickDecisionCard({
-    required this.amountController,
-    required this.descriptionController,
-    required this.result,
-    required this.onCheck,
-    required this.onDetailedAnalysis,
-  });
-
-  final TextEditingController amountController;
-  final TextEditingController descriptionController;
-  final _QuickDecisionResult? result;
-  final VoidCallback onCheck;
-  final VoidCallback onDetailedAnalysis;
-
-  @override
-  Widget build(BuildContext context) {
-    final color = _riskColor(result?.riskLevel ?? 'Dikkat');
-    return SmartCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const SectionHeader(
-            title: 'Bu Harcamayı Yapabilir miyim?',
-            subtitle: 'Hızlı bir ön kontrol ile harcamanın nakit görünümüne etkisini görün',
-          ),
-          const SizedBox(height: 14),
-          TextField(
-            controller: amountController,
-            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            decoration: const InputDecoration(
-              labelText: 'Tutar',
-              hintText: 'Örn. 15000',
-            ),
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: descriptionController,
-            decoration: const InputDecoration(
-              labelText: 'Açıklama',
-              hintText: 'Örn. ekipman alımı',
-            ),
-          ),
-          const SizedBox(height: 14),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton.icon(
-              onPressed: onCheck,
-              icon: const Icon(Icons.rule_outlined),
-              label: const Text('Kontrol Et'),
-            ),
-          ),
-          if (result != null) ...[
-            const SizedBox(height: 14),
-            Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.05),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: color.withValues(alpha: 0.2)),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      _RiskBadge(label: result!.riskLevel, color: color),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Text(
-                          result!.title,
-                          style: Theme.of(context).textTheme.titleMedium,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-                  Text(result!.description, style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: AppColors.textPrimary)),
-                ],
-              ),
-            ),
-            const SizedBox(height: 12),
-            OutlinedButton.icon(
-              onPressed: onDetailedAnalysis,
-              icon: const Icon(Icons.waterfall_chart_outlined),
-              label: const Text('Nakit AI’da Detaylı Analiz Et'),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-class _FinanceStrip extends StatelessWidget {
-  const _FinanceStrip({
-    required this.summary,
-    required this.currency,
-  });
-
+class _WarningSection extends StatelessWidget {
+  const _WarningSection({required this.summary, required this.onAction});
   final DashboardSummary summary;
-  final NumberFormat currency;
+  final ValueChanged<String> onAction;
 
   @override
   Widget build(BuildContext context) {
-    final items = [
-      _MiniMetric('Aylık Gelir', currency.format(summary.monthlyIncome), AppColors.success),
-      _MiniMetric('Aylık Gider', currency.format(summary.monthlyExpense), AppColors.danger),
-      _MiniMetric('Net Kâr/Zarar', currency.format(summary.netProfit), summary.netProfit >= 0 ? AppColors.primaryNavy : AppColors.warning),
-      _MiniMetric('Tahsil Edilecek', currency.format(summary.pendingReceivables), AppColors.info),
-      _MiniMetric('Ödenecek', currency.format(summary.upcomingPayments7d), AppColors.warning),
-      _MiniMetric('Nakit Skoru', '${summary.cashScore}/100', AppColors.primaryNavy),
-    ];
+    List<Widget> warnings = [];
 
-    return SmartCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const SectionHeader(
-            title: 'Finans Özeti',
-            subtitle: 'Günün kısa finans görünümü',
-          ),
-          const SizedBox(height: 14),
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final columns = constraints.maxWidth >= 1000 ? 6 : constraints.maxWidth >= 640 ? 3 : 2;
-              final itemWidth = (constraints.maxWidth - ((columns - 1) * 10)) / columns;
-              return Wrap(
-                spacing: 10,
-                runSpacing: 10,
-                children: items
-                    .map((item) => SizedBox(width: itemWidth, child: item))
-                    .toList(),
-              );
-            },
-          ),
-        ],
-      ),
-    );
-  }
-}
+    if (summary.overdueReceivables > 0) {
+      warnings.add(_WarningItem('Geciken Tahsilat', 'Vadesi geçmiş alacaklarınız var.', AppColors.danger, () => onAction('customers')));
+    }
+    if (summary.criticalStockCount > 0) {
+      warnings.add(_WarningItem('Kritik Stok', '${summary.criticalStockCount} ürün tükenmek üzere.', AppColors.warning, () => onAction('inventory')));
+    }
+    if (summary.cashScore < 50) {
+      warnings.add(_WarningItem('Nakit Riski', 'Nakit skorunuz düşük. Harcamaları izleyin.', AppColors.warning, () => onAction('cashflow')));
+    }
+    if (summary.profileCompletion < 70) {
+      warnings.add(_WarningItem('Eksik Profil', 'İşletme profilinizi tamamlayın.', AppColors.info, () => onAction('profile')));
+    }
 
-class _ReceivablePaymentRow extends StatelessWidget {
-  const _ReceivablePaymentRow({
-    required this.summary,
-    required this.currency,
-    required this.onCustomers,
-    required this.onCashflow,
-  });
-
-  final DashboardSummary summary;
-  final NumberFormat currency;
-  final VoidCallback onCustomers;
-  final VoidCallback onCashflow;
-
-  @override
-  Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final vertical = constraints.maxWidth < 760;
-        final receivableCard = _CompactInfoCard(
-          title: 'Tahsilat',
-          rows: [
-            _InfoRow('Bekleyen tahsilat', currency.format(summary.pendingReceivables)),
-            _InfoRow('Geciken tahsilat', currency.format(summary.overdueReceivables)),
-          ],
-          buttonLabel: 'Tahsilatları Gör',
-          icon: Icons.request_quote_outlined,
-          color: AppColors.info,
-          onPressed: onCustomers,
-        );
-
-        final paymentCard = _CompactInfoCard(
-          title: 'Ödemeler',
-          rows: [
-            _InfoRow('7 gün içindeki ödeme', currency.format(summary.upcomingPayments7d)),
-            _InfoRow('30 günlük ödeme planı', currency.format(summary.expectedOutflow30d)),
-          ],
-          buttonLabel: 'Ödeme Planına Git',
-          icon: Icons.payments_outlined,
-          color: AppColors.warning,
-          onPressed: onCashflow,
-        );
-
-        if (vertical) {
-          return Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              receivableCard,
-              const SizedBox(height: 12),
-              paymentCard,
-            ],
-          );
-        }
-
-        return Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(child: receivableCard),
-            const SizedBox(width: 12),
-            Expanded(child: paymentCard),
-          ],
-        );
-      },
-    );
-  }
-}
-
-class _StockAlertsCard extends StatelessWidget {
-  const _StockAlertsCard({
-    required this.summary,
-    required this.onOpenInventory,
-  });
-
-  final DashboardSummary summary;
-  final VoidCallback onOpenInventory;
-
-  @override
-  Widget build(BuildContext context) {
-    return SmartCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const SectionHeader(
-            title: 'Stok Uyarıları',
-            subtitle: 'Kritik ürünler ve marj görünümü',
-          ),
-          const SizedBox(height: 14),
-          Wrap(
-            spacing: 12,
-            runSpacing: 12,
-            children: [
-              _TinyStateBox(label: 'Kritik stok', value: '${summary.criticalStockCount} ürün'),
-              _TinyStateBox(label: 'Stokta yok', value: '${summary.outOfStockCount} ürün'),
-              _TinyStateBox(label: 'Düşük marj', value: '${summary.lowMarginProductCount} ürün'),
-            ],
-          ),
-          const SizedBox(height: 14),
-          ElevatedButton.icon(
-            onPressed: onOpenInventory,
-            icon: const Icon(Icons.inventory_2_outlined),
-            label: const Text('Stokları Kontrol Et'),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _DailyCommentaryCard extends StatelessWidget {
-  const _DailyCommentaryCard({required this.text});
-
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    return SmartCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const SectionHeader(
-            title: 'SmartKOBİ Günlük Yorumu',
-            subtitle: 'Bugünün kısa yönetim notu',
-          ),
-          const SizedBox(height: 12),
-          Text(text, style: Theme.of(context).textTheme.bodyLarge),
-        ],
-      ),
-    );
-  }
-}
-
-class _DocumentSupportCard extends StatelessWidget {
-  const _DocumentSupportCard({
-    required this.summary,
-    required this.onOpenDocuments,
-    required this.onOpenSupport,
-    required this.onOpenProfile,
-  });
-
-  final DashboardSummary summary;
-  final VoidCallback onOpenDocuments;
-  final VoidCallback onOpenSupport;
-  final VoidCallback onOpenProfile;
-
-  @override
-  Widget build(BuildContext context) {
-    final subtitle = summary.profileCompletion < 70
-        ? 'İşletme profilinizi tamamladıkça destek hazırlığı daha net görünür.'
-        : 'Belge ve destek hazırlığı durumunuzu tek kartta izleyin.';
-
-    return SmartCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SectionHeader(
-            title: 'Belge ve Destek Hazırlığı',
-            subtitle: subtitle,
-          ),
-          const SizedBox(height: 14),
-          _InfoRow('Eksik belge', '${summary.missingDocumentsCount}'),
-          const SizedBox(height: 8),
-          _InfoRow('Yüksek öncelikli eksik', '${summary.highPriorityMissingDocuments}'),
-          const SizedBox(height: 8),
-          _InfoRow('Süresi geçen belge', '${summary.expiredDocumentsCount}'),
-          const SizedBox(height: 8),
-          _InfoRow('Profil tamamlama', '%${summary.profileCompletion}'),
-          const SizedBox(height: 14),
-          Wrap(
-            spacing: 10,
-            runSpacing: 10,
-            children: [
-              OutlinedButton.icon(
-                onPressed: onOpenDocuments,
-                icon: const Icon(Icons.folder_open_outlined),
-                label: const Text('Belgeler’e Git'),
-              ),
-              OutlinedButton.icon(
-                onPressed: onOpenSupport,
-                icon: const Icon(Icons.workspace_premium_outlined),
-                label: const Text('Destek Analizi'),
-              ),
-              if (summary.profileCompletion < 70)
-                OutlinedButton.icon(
-                  onPressed: onOpenProfile,
-                  icon: const Icon(Icons.business_center_outlined),
-                  label: const Text('Profili Tamamla'),
-                ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _QuickActionsCard extends StatelessWidget {
-  const _QuickActionsCard({
-    required this.onIncome,
-    required this.onExpense,
-    required this.onCustomer,
-    required this.onProduct,
-    required this.onCashflow,
-    required this.onDocuments,
-    required this.onAdvisor,
-  });
-
-  final VoidCallback onIncome;
-  final VoidCallback onExpense;
-  final VoidCallback onCustomer;
-  final VoidCallback onProduct;
-  final VoidCallback onCashflow;
-  final VoidCallback onDocuments;
-  final VoidCallback onAdvisor;
-
-  @override
-  Widget build(BuildContext context) {
-    final actions = [
-      _QuickActionItem('Gelir Ekle', Icons.add_chart, onIncome),
-      _QuickActionItem('Gider Ekle', Icons.money_off_csred_outlined, onExpense),
-      _QuickActionItem('Müşteri Ekle', Icons.person_add_alt_1, onCustomer),
-      _QuickActionItem('Ürün Ekle', Icons.add_box_outlined, onProduct),
-      _QuickActionItem('Nakit Kaydı Ekle', Icons.waterfall_chart_outlined, onCashflow),
-      _QuickActionItem('Belge Yükle', Icons.upload_file_outlined, onDocuments),
-      _QuickActionItem('AI Danışmana Sor', Icons.smart_toy_outlined, onAdvisor),
-      _QuickActionItem(
-        'Fiş/Fatura Tara', 
-        Icons.document_scanner_outlined, 
-        () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ReceiptScannerPage())),
-      ),
-    ];
-
-    return SmartCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const SectionHeader(
-            title: 'Hızlı İşlemler',
-            subtitle: 'Günlük işlemleri tek dokunuşla başlatın',
-          ),
-          const SizedBox(height: 14),
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final columns = constraints.maxWidth >= 480 ? 2 : 1;
-              final itemWidth = (constraints.maxWidth - ((columns - 1) * 10)) / columns;
-              return Wrap(
-                spacing: 10,
-                runSpacing: 10,
-                children: actions
-                    .map(
-                      (item) => SizedBox(
-                        width: itemWidth,
-                        child: OutlinedButton.icon(
-                          onPressed: item.onTap,
-                          icon: Icon(item.icon, color: AppColors.primaryNavy),
-                          label: Text(item.label),
-                        ),
-                      ),
-                    )
-                    .toList(),
-              );
-            },
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ReportsOverviewCard extends StatelessWidget {
-  const _ReportsOverviewCard({
-    required this.latestReportType,
-    required this.latestReportSummary,
-    required this.onOpenReports,
-  });
-
-  final String? latestReportType;
-  final String? latestReportSummary;
-  final ValueChanged<String?> onOpenReports;
-
-  @override
-  Widget build(BuildContext context) {
-    final hasReport = (latestReportType ?? '').trim().isNotEmpty;
-    return SmartCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const SectionHeader(
-            title: 'Son Rapor',
-            subtitle: 'Yönetim raporlarınızı tek yerden takip edin',
-          ),
-          const SizedBox(height: 12),
-          Text(
-            hasReport ? _reportTypeLabel(latestReportType!) : 'Henüz rapor oluşturulmadı',
-            style: Theme.of(context).textTheme.titleMedium,
-          ),
-          const SizedBox(height: 8),
-          Text(
-            hasReport
-                ? (latestReportSummary?.trim().isNotEmpty == true
-                    ? latestReportSummary!
-                    : 'Son oluşturulan raporun özeti burada görünür.')
-                : 'KOBİ Sağlık Raporu oluşturarak işletmenizin genel durumunu tek çıktıda görebilirsiniz.',
-            style: const TextStyle(color: AppColors.textSecondary),
-          ),
-          const SizedBox(height: 14),
-          Wrap(
-            spacing: 10,
-            runSpacing: 10,
-            children: [
-              ElevatedButton.icon(
-                onPressed: () => onOpenReports(hasReport ? latestReportType : 'business_health'),
-                icon: Icon(hasReport ? Icons.visibility_outlined : Icons.add_chart),
-                label: Text(hasReport ? 'Raporlara Git' : 'KOBİ Sağlık Raporu Oluştur'),
-              ),
-              if (hasReport)
-                OutlinedButton.icon(
-                  onPressed: () => onOpenReports('weekly_action_plan'),
-                  icon: const Icon(Icons.date_range_outlined),
-                  label: const Text('Haftalık Plan Raporu'),
-                ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _NotificationsOverviewCard extends StatelessWidget {
-  const _NotificationsOverviewCard({
-    required this.summary,
-    required this.onOpenNotifications,
-    required this.onRefreshReminders,
-  });
-
-  final NotificationSummaryModel summary;
-  final VoidCallback onOpenNotifications;
-  final VoidCallback onRefreshReminders;
-
-  @override
-  Widget build(BuildContext context) {
-    final hasNotifications = summary.totalCount > 0;
-    final latestItems = summary.latestNotifications.take(3).toList();
-    return SmartCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const SectionHeader(
-            title: 'Bugünkü Hatırlatmalar',
-            subtitle: 'Önemli uyarıları ve günlük asistan bildirimlerini izleyin',
-          ),
-          const SizedBox(height: 12),
-          Text(
-            hasNotifications
-                ? '${summary.unreadCount} okunmamış bildirim var'
-                : 'Henüz bildirim görünmüyor',
-            style: Theme.of(context).textTheme.titleMedium,
-          ),
-          const SizedBox(height: 8),
-          Text(
-            summary.criticalCount > 0
-                ? 'Kritik bildirimleriniz var. Öncelikle tahsilat, belge ve nakit uyarılarını kontrol edin.'
-                : 'SmartKOBİ, önemli tahsilat, ödeme, stok ve belge uyarılarını burada özetler.',
-            style: const TextStyle(color: AppColors.textSecondary),
-          ),
-          const SizedBox(height: 12),
-          if (latestItems.isEmpty)
-            Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: AppColors.surfaceAlt,
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: AppColors.border),
-              ),
-              child: const Text('Yeni hatırlatma üretildiğinde burada son bildirimleriniz görünecek.'),
-            )
-          else
-            ...latestItems.map(
-              (item) => Padding(
-                padding: const EdgeInsets.only(bottom: 10),
-                child: Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: AppColors.surfaceAlt,
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: AppColors.border),
-                  ),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Icon(
-                        item.isCritical ? Icons.priority_high : Icons.notifications_outlined,
-                        color: item.isCritical ? AppColors.danger : AppColors.primaryNavy,
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(item.title, style: Theme.of(context).textTheme.titleSmall),
-                            const SizedBox(height: 4),
-                            Text(
-                              item.message,
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                              style: Theme.of(context).textTheme.bodyMedium,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 10,
-            runSpacing: 10,
-            children: [
-              OutlinedButton.icon(
-                onPressed: onOpenNotifications,
-                icon: const Icon(Icons.notifications_outlined),
-                label: const Text('Bildirimleri Gör'),
-              ),
-              OutlinedButton.icon(
-                onPressed: onRefreshReminders,
-                icon: const Icon(Icons.bolt_outlined),
-                label: const Text('Hatırlatmaları Yenile'),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _CompactInfoCard extends StatelessWidget {
-  const _CompactInfoCard({
-    required this.title,
-    required this.rows,
-    required this.buttonLabel,
-    required this.icon,
-    required this.color,
-    required this.onPressed,
-  });
-
-  final String title;
-  final List<_InfoRow> rows;
-  final String buttonLabel;
-  final IconData icon;
-  final Color color;
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    return SmartCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                height: 40,
-                width: 40,
-                decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(icon, color: color),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(title, style: Theme.of(context).textTheme.titleMedium),
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          for (var i = 0; i < rows.length; i++) ...[
-            rows[i],
-            if (i != rows.length - 1) const SizedBox(height: 8),
-          ],
-          const SizedBox(height: 14),
-          ElevatedButton.icon(
-            onPressed: onPressed,
-            icon: const Icon(Icons.arrow_forward_rounded),
-            label: Text(buttonLabel),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _MiniMetric extends StatelessWidget {
-  const _MiniMetric(this.label, this.value, this.color);
-
-  final String label;
-  final String value;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: AppColors.surfaceAlt,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            label,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: AppColors.textSecondary,
-                ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            value,
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  color: color,
-                  fontWeight: FontWeight.w700,
-                ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _TinyStateBox extends StatelessWidget {
-  const _TinyStateBox({
-    required this.label,
-    required this.value,
-  });
-
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 170,
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: AppColors.surfaceAlt,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(label, style: Theme.of(context).textTheme.bodyMedium),
-          const SizedBox(height: 6),
-          Text(value, style: Theme.of(context).textTheme.titleMedium),
-        ],
-      ),
-    );
-  }
-}
-
-class _RiskBadge extends StatelessWidget {
-  const _RiskBadge({
-    required this.label,
-    required this.color,
-  });
-
-  final String label;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: color.withValues(alpha: 0.2)),
-      ),
-      child: Text(
-        label,
-        style: Theme.of(context).textTheme.labelLarge?.copyWith(
-              color: color,
-              fontWeight: FontWeight.w700,
-            ),
-      ),
-    );
-  }
-}
-
-String _reportTypeLabel(String value) {
-  switch (value) {
-    case 'business_health':
-      return 'KOBİ Sağlık Raporu';
-    case 'financial_summary':
-      return 'Finansal Özet Raporu';
-    case 'cashflow':
-      return 'Nakit Akışı Raporu';
-    case 'customer_risk':
-      return 'Cari / Tahsilat Risk Raporu';
-    case 'inventory_risk':
-      return 'Stok Risk Raporu';
-    case 'support_eligibility':
-      return 'Destek Uygunluk Raporu';
-    case 'document_gap':
-      return 'Eksik Belge Raporu';
-    case 'daily_action_plan':
-      return 'Günlük İş Planı Raporu';
-    case 'weekly_action_plan':
-      return 'Haftalık İş Planı Raporu';
-    default:
-      return 'Rapor';
-  }
-}
-
-class _InfoRow extends StatelessWidget {
-  const _InfoRow(this.label, this.value);
-
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Expanded(
-          child: Text(
-            label,
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: AppColors.textSecondary,
-                ),
-          ),
-        ),
-        const SizedBox(width: 12),
-        Text(
-          value,
-          style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                fontWeight: FontWeight.w700,
-              ),
-        ),
+        Text('Dikkat Gerektirenler', style: Theme.of(context).textTheme.titleLarge),
+        const SizedBox(height: 16),
+        if (warnings.isEmpty)
+          const SmartCard(child: Text('Şu anda işletmenizde kritik bir uyarı görünmüyor. Harika gidiyorsunuz!'))
+        else
+          Column(children: warnings.take(3).toList()),
       ],
     );
   }
 }
 
-class _DashboardError extends StatelessWidget {
-  const _DashboardError({
-    required this.message,
-    required this.onRetry,
-  });
-
-  final String message;
-  final VoidCallback onRetry;
+class _WarningItem extends StatelessWidget {
+  const _WarningItem(this.title, this.desc, this.color, this.onTap);
+  final String title;
+  final String desc;
+  final Color color;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 560),
-        child: SmartCard(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.05),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: color.withValues(alpha: 0.2)),
+          ),
+          child: Row(
             children: [
-              const Icon(Icons.error_outline, color: AppColors.warning, size: 36),
-              const SizedBox(height: 12),
-              Text(
-                'Ana sayfa verileri alınamadı',
-                style: Theme.of(context).textTheme.titleMedium,
+              Container(width: 8, height: 8, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(title, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: color)),
+                    Text(desc, style: const TextStyle(fontSize: 12, color: AppColors.textPrimary)),
+                  ],
+                ),
               ),
-              const SizedBox(height: 8),
-              Text(message, textAlign: TextAlign.center),
-              const SizedBox(height: 16),
-              ElevatedButton.icon(
-                onPressed: onRetry,
-                icon: const Icon(Icons.refresh),
-                label: const Text('Tekrar Dene'),
-              ),
+              Icon(Icons.arrow_forward_ios, size: 14, color: color),
             ],
           ),
         ),
@@ -1594,41 +690,33 @@ class _DashboardError extends StatelessWidget {
   }
 }
 
-class _QuickDecisionResult {
-  const _QuickDecisionResult({
-    required this.title,
-    required this.riskLevel,
-    required this.description,
-  });
+class _SmartKobiCommentCard extends StatelessWidget {
+  const _SmartKobiCommentCard({required this.text});
+  final String text;
 
-  final String title;
-  final String riskLevel;
-  final String description;
-}
-
-class _QuickActionItem {
-  const _QuickActionItem(this.label, this.icon, this.onTap);
-
-  final String label;
-  final IconData icon;
-  final VoidCallback onTap;
-}
-
-Color _riskColor(String riskLevel) {
-  switch (riskLevel) {
-    case 'Acil':
-    case 'Yüksek risk':
-    case 'high':
-      return AppColors.danger;
-    case 'Riskli':
-    case 'Orta risk':
-    case 'Dikkat':
-      return AppColors.warning;
-    case 'Güvenli':
-    case 'Düşük risk':
-    case 'low':
-      return AppColors.success;
-    default:
-      return AppColors.primaryNavy;
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: AppColors.primaryNavySoft,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.tips_and_updates, color: AppColors.primaryNavy, size: 20),
+              const SizedBox(width: 10),
+              Text('SmartKOBİ Yorumu', style: Theme.of(context).textTheme.titleMedium?.copyWith(color: AppColors.primaryNavy)),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(text, style: const TextStyle(color: AppColors.textPrimary, height: 1.5)),
+        ],
+      ),
+    );
   }
 }

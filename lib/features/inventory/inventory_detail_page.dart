@@ -9,6 +9,7 @@ import '../../data/models/inventory_item_model.dart';
 import '../../data/models/stock_movement_model.dart';
 import '../../data/repositories/inventory_repository.dart';
 import 'inventory_calculations.dart';
+import '../../core/utils/formatters.dart';
 
 class InventoryDetailPage extends StatefulWidget {
   const InventoryDetailPage({
@@ -359,18 +360,18 @@ class _InventorySummaryGrid extends StatelessWidget {
     final cards = [
       _MetricData(
         title: 'Mevcut Stok',
-        value: '${item.stockQuantity.toStringAsFixed(2)} ${item.unit}',
+        value: AppFormatters.formatQuantity(item.stockQuantity, unit: item.unit),
         color: AppColors.gold500,
         icon: Icons.inventory_2_outlined,
       ),
       _MetricData(
         title: 'Minimum Stok',
-        value: '${item.minStockLevel.toStringAsFixed(2)} ${item.unit}',
+        value: AppFormatters.formatQuantity(item.minStockLevel, unit: item.unit),
         color: AppColors.warning,
         icon: Icons.warning_amber_outlined,
       ),
       _MetricData(
-        title: 'Stok Değeri',
+        title: 'Toplam Alış Değeri',
         value: currency.format(item.stockValue),
         color: AppColors.info,
         icon: Icons.savings_outlined,

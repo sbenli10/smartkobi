@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 
 import '../../common/widgets/page_scaffold.dart';
 import '../../common/widgets/section_header.dart';
 import '../../common/widgets/smart_card.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/utils/formatters.dart';
 import '../../data/models/transaction_model.dart';
 import '../../data/repositories/transactions_repository.dart';
 import 'finance_calculations.dart';
@@ -20,7 +20,6 @@ class TransactionsPage extends StatefulWidget {
 
 class _TransactionsPageState extends State<TransactionsPage> {
   final TransactionsRepository _repository = TransactionsRepository();
-  final NumberFormat _currency = NumberFormat.currency(locale: 'tr_TR', symbol: '₺');
 
   List<TransactionModel> _transactions = [];
   bool _loading = true;
@@ -157,7 +156,6 @@ class _TransactionsPageState extends State<TransactionsPage> {
               children: [
                 _FinanceSummaryGrid(
                   transactions: _transactions,
-                  currency: _currency,
                 ),
                 const SizedBox(height: 16),
                 _FinanceInsightCard(transactions: _transactions),
@@ -188,11 +186,9 @@ class _TransactionsPageState extends State<TransactionsPage> {
 class _FinanceSummaryGrid extends StatelessWidget {
   const _FinanceSummaryGrid({
     required this.transactions,
-    required this.currency,
   });
 
   final List<TransactionModel> transactions;
-  final NumberFormat currency;
 
   @override
   Widget build(BuildContext context) {
@@ -206,42 +202,42 @@ class _FinanceSummaryGrid extends StatelessWidget {
     final cards = [
       _SummaryData(
         title: 'Toplam Gelir',
-        value: currency.format(income),
+        value: AppFormatters.formatCurrency(income),
         description: 'Kaydedilen tüm gelir toplamı',
         icon: Icons.trending_up,
         color: AppColors.success,
       ),
       _SummaryData(
         title: 'Toplam Gider',
-        value: currency.format(expense),
+        value: AppFormatters.formatCurrency(expense),
         description: 'Kaydedilen tüm gider toplamı',
         icon: Icons.trending_down,
         color: AppColors.danger,
       ),
       _SummaryData(
         title: 'Net Kâr/Zarar',
-        value: currency.format(profit),
+        value: AppFormatters.formatCurrency(profit),
         description: profit >= 0 ? 'Pozitif finansal denge' : 'Gider baskısı dikkat çekiyor',
         icon: Icons.account_balance_wallet_outlined,
         color: profit >= 0 ? AppColors.gold500 : AppColors.warning,
       ),
       _SummaryData(
         title: 'Gider/Gelir Oranı',
-        value: '${(ratio * 100).toStringAsFixed(0)}%',
+        value: AppFormatters.formatPercent(ratio * 100),
         description: 'Gelire göre gider yükü',
         icon: Icons.pie_chart_outline,
         color: AppColors.info,
       ),
       _SummaryData(
         title: 'Bekleyen Ödemeler',
-        value: currency.format(pending),
+        value: AppFormatters.formatCurrency(pending),
         description: 'Ödenmemiş gider yükümlülükleri',
         icon: Icons.payments_outlined,
         color: AppColors.warning,
       ),
       _SummaryData(
         title: 'Tahsil Edilecek Tutar',
-        value: currency.format(receivable),
+        value: AppFormatters.formatCurrency(receivable),
         description: 'Bekleyen gelir tahsilatları',
         icon: Icons.request_quote_outlined,
         color: AppColors.gold400,
@@ -419,7 +415,10 @@ class _TransactionCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final color = transaction.isIncome ? AppColors.success : AppColors.danger;
-    final dateLabel = DateFormat('dd MMM yyyy', 'tr_TR').format(transaction.transactionDate);
+    final dateLabel = AppFormatters.formatDateTr(transaction.transactionDate);
+    final amountLabel = transaction.isExpense
+        ? '-${AppFormatters.formatCurrency(transaction.amount)}'
+        : '+${AppFormatters.formatCurrency(transaction.amount)}';
 
     return SmartCard(
       child: Column(
@@ -473,7 +472,7 @@ class _TransactionCard extends StatelessWidget {
               ),
               const SizedBox(width: 12),
               Text(
-                transaction.formattedAmount,
+                amountLabel,
                 style: Theme.of(context).textTheme.titleLarge?.copyWith(color: color),
               ),
             ],
@@ -609,7 +608,7 @@ class _AddTransactionSheetState extends State<_AddTransactionSheet> {
       padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
       child: Container(
         decoration: const BoxDecoration(
-          color: AppColors.navy900,
+          color: AppColors.surface,
           borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
         ),
         child: SafeArea(
@@ -626,7 +625,7 @@ class _AddTransactionSheetState extends State<_AddTransactionSheet> {
                       width: 48,
                       height: 4,
                       decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.18),
+                        color: AppColors.border,
                         borderRadius: BorderRadius.circular(99),
                       ),
                     ),
@@ -697,7 +696,10 @@ class _AddTransactionSheetState extends State<_AddTransactionSheet> {
                       if (value == null || value.trim().isEmpty) {
                         return 'Tutar gerekli';
                       }
-                      if (double.tryParse(value.replaceAll(',', '.')) == null) {
+                      final normalized = AppFormatters.normalizeDecimalInput(value);
+                      final parsed = double.tryParse(normalized ?? '');
+
+                      if (parsed == null || parsed <= 0) {
                         return 'Geçerli bir tutar girin';
                       }
                       return null;
@@ -708,7 +710,7 @@ class _AddTransactionSheetState extends State<_AddTransactionSheet> {
                     contentPadding: EdgeInsets.zero,
                     leading: const Icon(Icons.calendar_today_outlined, color: AppColors.gold500),
                     title: const Text('Tarih'),
-                    subtitle: Text(DateFormat('dd.MM.yyyy').format(_transactionDate)),
+                    subtitle: Text(AppFormatters.formatDateTr(_transactionDate)),
                     onTap: _pickDate,
                   ),
                   const SizedBox(height: 12),
@@ -774,7 +776,11 @@ class _AddTransactionSheetState extends State<_AddTransactionSheet> {
       return;
     }
 
-    final amount = double.parse(_amountController.text.trim().replaceAll(',', '.'));
+    final amount = AppFormatters.parseDecimal(_amountController.text, fallback: 0);
+    if (amount <= 0) {
+      return;
+    }
+
     final now = DateTime.now();
 
     Navigator.pop(
