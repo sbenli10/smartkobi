@@ -107,6 +107,9 @@ class _ReportDetailPageState extends State<ReportDetailPage> {
     }
     try {
       final url = await _repository.createPdfDownloadUrl(_report.pdfFilePath!);
+      if (!mounted) {
+        return;
+      }
       if (kIsWeb) {
         openReportUrl(url);
       } else {
@@ -117,6 +120,9 @@ class _ReportDetailPageState extends State<ReportDetailPage> {
         );
       }
     } catch (_) {
+      if (!mounted) {
+        return;
+      }
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('PDF bağlantısı hazırlanamadı.')),
       );

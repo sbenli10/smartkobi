@@ -1,4 +1,3 @@
-import 'package:postgrest/postgrest.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../features/support/support_analysis_engine.dart';

@@ -1,6 +1,5 @@
 import 'dart:typed_data';
 
-import 'package:postgrest/postgrest.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../features/reports/report_generation_engine.dart';

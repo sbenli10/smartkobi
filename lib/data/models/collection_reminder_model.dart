@@ -1,3 +1,5 @@
+import '../../core/utils/formatters.dart';
+
 class CollectionReminderModel {
   final String id;
   final String userId;
@@ -14,8 +16,8 @@ class CollectionReminderModel {
   final String? phoneNumber;
   final String? whatsappUrl;
   final Map<String, dynamic> metadata;
-  final DateTime createdAt;
-  final DateTime updatedAt;
+  final DateTime? createdAt;
+  final DateTime? updatedAt;
 
   const CollectionReminderModel({
     required this.id,
@@ -33,13 +35,17 @@ class CollectionReminderModel {
     this.phoneNumber,
     this.whatsappUrl,
     required this.metadata,
-    required this.createdAt,
-    required this.updatedAt,
+    this.createdAt,
+    this.updatedAt,
   });
 
   bool get isDraft => status == 'draft';
   bool get isCopied => status == 'copied';
   bool get isOpenedWhatsapp => status == 'opened_whatsapp';
+  bool get isSentManually => status == 'sent_manually';
+
+  String get formattedAmount => amount != null ? AppFormatters.formatCurrency(amount) : '-';
+  String get formattedDueDate => dueDate != null ? AppFormatters.formatDateTr(dueDate) : '-';
 
   String get toneLabel {
     switch (tone) {
@@ -68,8 +74,8 @@ class CollectionReminderModel {
       phoneNumber: json['phone_number'] as String?,
       whatsappUrl: json['whatsapp_url'] as String?,
       metadata: json['metadata'] as Map<String, dynamic>? ?? {},
-      createdAt: DateTime.parse(json['created_at'].toString()),
-      updatedAt: DateTime.parse(json['updated_at'].toString()),
+      createdAt: json['created_at'] != null ? DateTime.parse(json['created_at'].toString()) : null,
+      updatedAt: json['updated_at'] != null ? DateTime.parse(json['updated_at'].toString()) : null,
     );
   }
 
@@ -85,7 +91,7 @@ class CollectionReminderModel {
       'title': title,
       'message': message,
       if (amount != null) 'amount': amount,
-      if (dueDate != null) 'due_date': dueDate?.toIso8601String(),
+      if (dueDate != null) 'due_date': dueDate?.toIso8601String().split('T').first,
       'status': status,
       if (phoneNumber != null) 'phone_number': phoneNumber,
       if (whatsappUrl != null) 'whatsapp_url': whatsappUrl,
@@ -93,15 +99,20 @@ class CollectionReminderModel {
     };
   }
 
-  CollectionReminderModel copyWith({String? status, String? message}) {
+  CollectionReminderModel copyWith({
+    String? id,
+    String? status, 
+    String? message,
+    String? tone,
+  }) {
     return CollectionReminderModel(
-      id: id,
+      id: id ?? this.id,
       userId: userId,
       businessId: businessId,
       customerId: customerId,
       customerTransactionId: customerTransactionId,
       reminderType: reminderType,
-      tone: tone,
+      tone: tone ?? this.tone,
       title: title,
       message: message ?? this.message,
       amount: amount,

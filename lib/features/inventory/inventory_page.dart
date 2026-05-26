@@ -150,6 +150,86 @@ class _InventoryPageState extends State<InventoryPage> {
     }
   }
 
+  Future<void> _openEditItemSheet(InventoryItemModel item) async {
+    final updatedItem = await showModalBottomSheet<InventoryItemModel>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _AddInventoryItemSheet(existingItem: item),
+    );
+
+    if (updatedItem == null) {
+      return;
+    }
+
+    try {
+      await _repository.updateInventoryItem(updatedItem);
+      await _loadItems();
+      if (!mounted) {
+        return;
+      }
+      _showSnackBar('Ürün bilgileri güncellendi.');
+    } catch (e) {
+      if (!mounted) {
+        return;
+      }
+      _showSnackBar(
+        e.toString().replaceFirst('Exception: ', ''),
+        isError: true,
+      );
+    }
+  }
+
+  Future<void> _confirmDeleteItem(InventoryItemModel item) async {
+    final shouldDelete = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          backgroundColor: AppColors.surface,
+          title: const Text('Ürünü Sil'),
+          content: Text(
+            '${item.name} ürününü silmek istediğinize emin misiniz? Bu işlem ürüne bağlı stok hareketlerini de kaldırır.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Vazgeç'),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.danger,
+                foregroundColor: Colors.white,
+              ),
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Sil'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (shouldDelete != true) {
+      return;
+    }
+
+    try {
+      await _repository.deleteInventoryItem(item.id);
+      await _loadItems();
+      if (!mounted) {
+        return;
+      }
+      _showSnackBar('Ürün silindi.');
+    } catch (e) {
+      if (!mounted) {
+        return;
+      }
+      _showSnackBar(
+        e.toString().replaceFirst('Exception: ', ''),
+        isError: true,
+      );
+    }
+  }
+
   Future<void> _scanBarcode() async {
     if (kIsWeb) {
       _showSnackBar(
@@ -193,13 +273,14 @@ class _InventoryPageState extends State<InventoryPage> {
     }
   }
 
-  void _openItemDetail(InventoryItemModel item) {
-    Navigator.push(
+  Future<void> _openItemDetail(InventoryItemModel item) async {
+    await Navigator.push(
       context,
       MaterialPageRoute(
         builder: (_) => InventoryDetailPage(itemId: item.id),
       ),
     );
+    await _loadItems();
   }
 
   void _showSnackBar(String message, {bool isError = false}) {
@@ -307,6 +388,8 @@ class _InventoryPageState extends State<InventoryPage> {
                         child: _InventoryItemCard(
                           item: item,
                           onTap: () => _openItemDetail(item),
+                          onEdit: () => _openEditItemSheet(item),
+                          onDelete: () => _confirmDeleteItem(item),
                         ),
                       ),
                     ),
@@ -485,10 +568,14 @@ class _InventoryItemCard extends StatelessWidget {
   const _InventoryItemCard({
     required this.item,
     required this.onTap,
+    required this.onEdit,
+    required this.onDelete,
   });
 
   final InventoryItemModel item;
   final VoidCallback onTap;
+  final VoidCallback onEdit;
+  final VoidCallback onDelete;
 
   @override
   Widget build(BuildContext context) {
@@ -523,7 +610,48 @@ class _InventoryItemCard extends StatelessWidget {
                   ],
                 ),
               ),
-              _StatusBadge(item: item),
+              const SizedBox(width: 12),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  _StatusBadge(item: item),
+                  PopupMenuButton<String>(
+                    color: AppColors.surface,
+                    icon: const Icon(
+                      Icons.more_vert,
+                      color: AppColors.textSecondary,
+                    ),
+                    onSelected: (value) {
+                      if (value == 'edit') {
+                        onEdit();
+                      } else if (value == 'delete') {
+                        onDelete();
+                      }
+                    },
+                    itemBuilder: (context) => const [
+                      PopupMenuItem<String>(
+                        value: 'edit',
+                        child: ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          leading: Icon(Icons.edit_outlined),
+                          title: Text('Bilgileri Güncelle'),
+                        ),
+                      ),
+                      PopupMenuItem<String>(
+                        value: 'delete',
+                        child: ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          leading: Icon(
+                            Icons.delete_outline,
+                            color: AppColors.danger,
+                          ),
+                          title: Text('Ürünü Sil'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ],
           ),
           const SizedBox(height: 12),
@@ -644,9 +772,13 @@ class _InventoryItemCard extends StatelessWidget {
 }
 
 class _AddInventoryItemSheet extends StatefulWidget {
-  const _AddInventoryItemSheet({this.initialBarcode});
+  const _AddInventoryItemSheet({
+    this.initialBarcode,
+    this.existingItem,
+  });
 
   final String? initialBarcode;
+  final InventoryItemModel? existingItem;
 
   @override
   State<_AddInventoryItemSheet> createState() => _AddInventoryItemSheetState();
@@ -668,6 +800,30 @@ class _AddInventoryItemSheetState extends State<_AddInventoryItemSheet> {
   final _supplierNameController = TextEditingController();
   final _supplierPhoneController = TextEditingController();
   final _descriptionController = TextEditingController();
+
+  bool get _isEditMode => widget.existingItem != null;
+
+  @override
+  void initState() {
+    super.initState();
+    final item = widget.existingItem;
+    if (item == null) {
+      return;
+    }
+
+    _nameController.text = item.name;
+    _skuController.text = item.sku ?? '';
+    _barcodeController.text = item.barcode ?? widget.initialBarcode ?? '';
+    _categoryController.text = item.category ?? '';
+    _unitController.text = item.unit;
+    _stockController.text = item.stockQuantity.toStringAsFixed(2);
+    _minStockController.text = item.minStockLevel.toStringAsFixed(2);
+    _purchasePriceController.text = item.purchasePrice.toStringAsFixed(2);
+    _salePriceController.text = item.salePrice.toStringAsFixed(2);
+    _supplierNameController.text = item.supplierName ?? '';
+    _supplierPhoneController.text = item.supplierPhone ?? '';
+    _descriptionController.text = item.description ?? '';
+  }
 
   @override
   void dispose() {
@@ -718,12 +874,14 @@ class _AddInventoryItemSheetState extends State<_AddInventoryItemSheet> {
                   ),
                   const SizedBox(height: 18),
                   Text(
-                    'Yeni Ürün',
+                    _isEditMode ? 'Ürün Bilgilerini Güncelle' : 'Yeni Ürün',
                     style: Theme.of(context).textTheme.titleLarge,
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    'Ürünü, fiyat bilgisini ve başlangıç stok miktarını tanımlayın.',
+                    _isEditMode
+                        ? 'Ürünün temel bilgilerini, fiyatlarını ve minimum stok seviyesini güncelleyin.'
+                        : 'Ürünü, fiyat bilgisini ve başlangıç stok miktarını tanımlayın.',
                     style: Theme.of(context).textTheme.bodyMedium,
                   ),
                   const SizedBox(height: 16),
@@ -763,13 +921,23 @@ class _AddInventoryItemSheetState extends State<_AddInventoryItemSheet> {
                   const SizedBox(height: 12),
                   _field(
                     _stockController,
-                    'Başlangıç stok miktarı',
+                    _isEditMode ? 'Mevcut stok miktarı' : 'Başlangıç stok miktarı',
                     Icons.add_box_outlined,
                     keyboardType: const TextInputType.numberWithOptions(
                       decimal: true,
                     ),
                     validator: _validateNumber,
+                    enabled: !_isEditMode,
                   ),
+                  if (_isEditMode) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      'Stok miktarı hareket kayıtlarıyla yönetilir. Miktarı değiştirmek için ürün detayındaki stok hareketlerini kullanın.',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: 12),
                   _field(
                     _minStockController,
@@ -825,7 +993,7 @@ class _AddInventoryItemSheetState extends State<_AddInventoryItemSheet> {
                     child: ElevatedButton.icon(
                       onPressed: _submit,
                       icon: const Icon(Icons.save_outlined),
-                      label: const Text('Kaydet'),
+                      label: Text(_isEditMode ? 'Güncelle' : 'Kaydet'),
                     ),
                   ),
                 ],
@@ -844,12 +1012,14 @@ class _AddInventoryItemSheetState extends State<_AddInventoryItemSheet> {
     TextInputType? keyboardType,
     int maxLines = 1,
     String? Function(String?)? validator,
+    bool enabled = true,
   }) {
     return TextFormField(
       controller: controller,
       keyboardType: keyboardType,
       maxLines: maxLines,
       validator: validator,
+      enabled: enabled,
       decoration: InputDecoration(
         labelText: label,
         prefixIcon: Icon(icon),
@@ -858,7 +1028,7 @@ class _AddInventoryItemSheetState extends State<_AddInventoryItemSheet> {
   }
 
   String? _validateNumber(String? value) {
-    final parsed = _parseDouble(value);
+    final parsed = double.tryParse((value ?? '0').trim().replaceAll(',', '.'));
     if (parsed == null || parsed < 0) {
       return 'Negatif olmayan bir değer girin';
     }
@@ -873,30 +1043,51 @@ class _AddInventoryItemSheetState extends State<_AddInventoryItemSheet> {
     if (!_formKey.currentState!.validate()) return;
 
     final now = DateTime.now();
+    final existingItem = widget.existingItem;
 
     Navigator.pop(
       context,
-      InventoryItemModel(
-        id: '',
-        userId: '',
-        businessId: null,
-        name: _nameController.text.trim(),
-        sku: _emptyToNull(_skuController.text),
-        barcode: _emptyToNull(_barcodeController.text),
-        category: _emptyToNull(_categoryController.text),
-        unit: _unitController.text.trim(),
-        stockQuantity: _parseDouble(_stockController.text),
-        minStockLevel: _parseDouble(_minStockController.text),
-        purchasePrice: _parseDouble(_purchasePriceController.text),
-        salePrice: _parseDouble(_salePriceController.text),
-        supplierName: _emptyToNull(_supplierNameController.text),
-        supplierPhone: _emptyToNull(_supplierPhoneController.text),
-        description: _emptyToNull(_descriptionController.text),
-        isActive: true,
-        lastMovementDate: null,
-        createdAt: now,
-        updatedAt: now,
-      ),
+      existingItem?.copyWith(
+            name: _nameController.text.trim(),
+            sku: _emptyToNull(_skuController.text),
+            barcode: _emptyToNull(_barcodeController.text),
+            category: _emptyToNull(_categoryController.text),
+            unit: _unitController.text.trim(),
+            minStockLevel: _parseDouble(_minStockController.text),
+            purchasePrice: _parseDouble(_purchasePriceController.text),
+            salePrice: _parseDouble(_salePriceController.text),
+            supplierName: _emptyToNull(_supplierNameController.text),
+            supplierPhone: _emptyToNull(_supplierPhoneController.text),
+            description: _emptyToNull(_descriptionController.text),
+            updatedAt: now,
+            clearSku: _emptyToNull(_skuController.text) == null,
+            clearBarcode: _emptyToNull(_barcodeController.text) == null,
+            clearCategory: _emptyToNull(_categoryController.text) == null,
+            clearSupplierName: _emptyToNull(_supplierNameController.text) == null,
+            clearSupplierPhone: _emptyToNull(_supplierPhoneController.text) == null,
+            clearDescription: _emptyToNull(_descriptionController.text) == null,
+          ) ??
+          InventoryItemModel(
+            id: '',
+            userId: '',
+            businessId: null,
+            name: _nameController.text.trim(),
+            sku: _emptyToNull(_skuController.text),
+            barcode: _emptyToNull(_barcodeController.text),
+            category: _emptyToNull(_categoryController.text),
+            unit: _unitController.text.trim(),
+            stockQuantity: _parseDouble(_stockController.text),
+            minStockLevel: _parseDouble(_minStockController.text),
+            purchasePrice: _parseDouble(_purchasePriceController.text),
+            salePrice: _parseDouble(_salePriceController.text),
+            supplierName: _emptyToNull(_supplierNameController.text),
+            supplierPhone: _emptyToNull(_supplierPhoneController.text),
+            description: _emptyToNull(_descriptionController.text),
+            isActive: true,
+            lastMovementDate: null,
+            createdAt: now,
+            updatedAt: now,
+          ),
     );
   }
 

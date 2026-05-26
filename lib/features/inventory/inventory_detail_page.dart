@@ -169,6 +169,101 @@ class _InventoryDetailPageState extends State<InventoryDetailPage> {
     }
   }
 
+  Future<void> _openEditItemSheet() async {
+    final item = _item;
+    if (item == null) {
+      return;
+    }
+
+    final updatedItem = await showModalBottomSheet<InventoryItemModel>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _EditInventoryItemSheet(existingItem: item),
+    );
+
+    if (updatedItem == null) {
+      return;
+    }
+
+    try {
+      await _repository.updateInventoryItem(updatedItem);
+      await _loadData();
+      if (!mounted) {
+        return;
+      }
+      _showSnackBar('Ürün bilgileri güncellendi.');
+    } catch (e) {
+      if (!mounted) {
+        return;
+      }
+      _showSnackBar(
+        e.toString().replaceFirst('Exception: ', ''),
+        isError: true,
+      );
+    }
+  }
+
+  Future<void> _deleteItem() async {
+    final item = _item;
+    if (item == null) {
+      return;
+    }
+
+    final shouldDelete = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          backgroundColor: AppColors.surface,
+          title: const Text('Ürünü Sil'),
+          content: Text(
+            '${item.name} ürününü silmek istediğinize emin misiniz? Bu işlem stok hareketlerini de kaldırır.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Vazgeç'),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.danger,
+                foregroundColor: Colors.white,
+              ),
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Sil'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (shouldDelete != true) {
+      return;
+    }
+
+    try {
+      await _repository.deleteInventoryItem(item.id);
+      if (!mounted) {
+        return;
+      }
+      Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Ürün silindi.'),
+          backgroundColor: AppColors.success,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) {
+        return;
+      }
+      _showSnackBar(
+        e.toString().replaceFirst('Exception: ', ''),
+        isError: true,
+      );
+    }
+  }
+
   Future<void> _deactivateItem() async {
     final item = _item;
     if (item == null) {
@@ -250,7 +345,9 @@ class _InventoryDetailPageState extends State<InventoryDetailPage> {
                     _QuickActionsCard(
                       onStockIn: () => _openMovementSheet(presetType: 'in'),
                       onStockOut: () => _openMovementSheet(presetType: 'out'),
+                      onEdit: _openEditItemSheet,
                       onPriceUpdate: _openPriceUpdateDialog,
+                      onDelete: _deleteItem,
                       onDeactivate: _deactivateItem,
                     ),
                     const SizedBox(height: 16),
@@ -569,13 +666,17 @@ class _QuickActionsCard extends StatelessWidget {
   const _QuickActionsCard({
     required this.onStockIn,
     required this.onStockOut,
+    required this.onEdit,
     required this.onPriceUpdate,
+    required this.onDelete,
     required this.onDeactivate,
   });
 
   final VoidCallback onStockIn;
   final VoidCallback onStockOut;
+  final VoidCallback onEdit;
   final VoidCallback onPriceUpdate;
+  final VoidCallback onDelete;
   final VoidCallback onDeactivate;
 
   @override
@@ -604,9 +705,19 @@ class _QuickActionsCard extends StatelessWidget {
                 label: const Text('Stok Çıkışı'),
               ),
               OutlinedButton.icon(
+                onPressed: onEdit,
+                icon: const Icon(Icons.edit_outlined, color: AppColors.gold500),
+                label: const Text('Bilgileri Güncelle'),
+              ),
+              OutlinedButton.icon(
                 onPressed: onPriceUpdate,
                 icon: const Icon(Icons.sell_outlined, color: AppColors.gold500),
                 label: const Text('Fiyat Güncelle'),
+              ),
+              OutlinedButton.icon(
+                onPressed: onDelete,
+                icon: const Icon(Icons.delete_outline, color: AppColors.danger),
+                label: const Text('Ürünü Sil'),
               ),
               OutlinedButton.icon(
                 onPressed: onDeactivate,
@@ -996,4 +1107,298 @@ class _MetricData {
   final String value;
   final Color color;
   final IconData icon;
+}
+
+class _EditInventoryItemSheet extends StatefulWidget {
+  const _EditInventoryItemSheet({required this.existingItem});
+
+  final InventoryItemModel existingItem;
+
+  @override
+  State<_EditInventoryItemSheet> createState() => _EditInventoryItemSheetState();
+}
+
+class _EditInventoryItemSheetState extends State<_EditInventoryItemSheet> {
+  final _formKey = GlobalKey<FormState>();
+
+  late final TextEditingController _nameController;
+  late final TextEditingController _skuController;
+  late final TextEditingController _barcodeController;
+  late final TextEditingController _categoryController;
+  late final TextEditingController _unitController;
+  late final TextEditingController _minStockController;
+  late final TextEditingController _purchasePriceController;
+  late final TextEditingController _salePriceController;
+  late final TextEditingController _supplierNameController;
+  late final TextEditingController _supplierPhoneController;
+  late final TextEditingController _descriptionController;
+
+  @override
+  void initState() {
+    super.initState();
+    final item = widget.existingItem;
+    _nameController = TextEditingController(text: item.name);
+    _skuController = TextEditingController(text: item.sku ?? '');
+    _barcodeController = TextEditingController(text: item.barcode ?? '');
+    _categoryController = TextEditingController(text: item.category ?? '');
+    _unitController = TextEditingController(text: item.unit);
+    _minStockController =
+        TextEditingController(text: item.minStockLevel.toStringAsFixed(2));
+    _purchasePriceController =
+        TextEditingController(text: item.purchasePrice.toStringAsFixed(2));
+    _salePriceController =
+        TextEditingController(text: item.salePrice.toStringAsFixed(2));
+    _supplierNameController = TextEditingController(text: item.supplierName ?? '');
+    _supplierPhoneController = TextEditingController(text: item.supplierPhone ?? '');
+    _descriptionController = TextEditingController(text: item.description ?? '');
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _skuController.dispose();
+    _barcodeController.dispose();
+    _categoryController.dispose();
+    _unitController.dispose();
+    _minStockController.dispose();
+    _purchasePriceController.dispose();
+    _salePriceController.dispose();
+    _supplierNameController.dispose();
+    _supplierPhoneController.dispose();
+    _descriptionController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      child: Container(
+        decoration: const BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: SafeArea(
+          top: false,
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+            child: Form(
+              key: _formKey,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 48,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: AppColors.border,
+                        borderRadius: BorderRadius.circular(99),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 18),
+                  Text(
+                    'Ürün Bilgilerini Güncelle',
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    'Ürünün temel bilgilerini ve fiyat alanlarını güncelleyebilirsiniz.',
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
+                  const SizedBox(height: 16),
+                  _field(
+                    _nameController,
+                    'Ürün adı',
+                    Icons.inventory_2_outlined,
+                    validator: (value) {
+                      if (value == null || value.trim().isEmpty) {
+                        return 'Ürün adı zorunlu';
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  _field(_skuController, 'SKU', Icons.tag_outlined),
+                  const SizedBox(height: 12),
+                  _field(_barcodeController, 'Barkod', Icons.qr_code_outlined),
+                  const SizedBox(height: 12),
+                  _field(
+                    _categoryController,
+                    'Kategori',
+                    Icons.category_outlined,
+                  ),
+                  const SizedBox(height: 12),
+                  _field(
+                    _unitController,
+                    'Birim',
+                    Icons.straighten_outlined,
+                    validator: (value) {
+                      if (value == null || value.trim().isEmpty) {
+                        return 'Birim zorunlu';
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    initialValue: AppFormatters.formatQuantity(
+                      widget.existingItem.stockQuantity,
+                      unit: widget.existingItem.unit,
+                    ),
+                    enabled: false,
+                    decoration: const InputDecoration(
+                      labelText: 'Mevcut stok miktarı',
+                      prefixIcon: Icon(Icons.add_box_outlined),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Stok miktarı hareket kayıtlarıyla yönetilir. Güncellemek için stok girişi veya çıkışı ekleyin.',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  _field(
+                    _minStockController,
+                    'Minimum stok seviyesi',
+                    Icons.warning_amber_outlined,
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                    validator: _validateNumber,
+                  ),
+                  const SizedBox(height: 12),
+                  _field(
+                    _purchasePriceController,
+                    'Alış fiyatı (₺)',
+                    Icons.payments_outlined,
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                    validator: _validateNumber,
+                  ),
+                  const SizedBox(height: 12),
+                  _field(
+                    _salePriceController,
+                    'Satış fiyatı (₺)',
+                    Icons.sell_outlined,
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                    validator: _validateNumber,
+                  ),
+                  const SizedBox(height: 12),
+                  _field(
+                    _supplierNameController,
+                    'Tedarikçi adı',
+                    Icons.business_outlined,
+                  ),
+                  const SizedBox(height: 12),
+                  _field(
+                    _supplierPhoneController,
+                    'Tedarikçi telefonu',
+                    Icons.phone_outlined,
+                  ),
+                  const SizedBox(height: 12),
+                  _field(
+                    _descriptionController,
+                    'Açıklama',
+                    Icons.notes_outlined,
+                    maxLines: 3,
+                  ),
+                  const SizedBox(height: 18),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: _submit,
+                      icon: const Icon(Icons.save_outlined),
+                      label: const Text('Güncelle'),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _field(
+    TextEditingController controller,
+    String label,
+    IconData icon, {
+    TextInputType? keyboardType,
+    int maxLines = 1,
+    String? Function(String?)? validator,
+  }) {
+    return TextFormField(
+      controller: controller,
+      keyboardType: keyboardType,
+      maxLines: maxLines,
+      validator: validator,
+      decoration: InputDecoration(
+        labelText: label,
+        prefixIcon: Icon(icon),
+      ),
+    );
+  }
+
+  String? _validateNumber(String? value) {
+    final parsed = double.tryParse((value ?? '').replaceAll(',', '.'));
+    if (parsed == null || parsed < 0) {
+      return 'Negatif olmayan bir değer girin';
+    }
+    return null;
+  }
+
+  double _parseDouble(String value) {
+    return double.parse(value.trim().replaceAll(',', '.'));
+  }
+
+  void _submit() {
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
+
+    final now = DateTime.now();
+    final sku = _emptyToNull(_skuController.text);
+    final barcode = _emptyToNull(_barcodeController.text);
+    final category = _emptyToNull(_categoryController.text);
+    final supplierName = _emptyToNull(_supplierNameController.text);
+    final supplierPhone = _emptyToNull(_supplierPhoneController.text);
+    final description = _emptyToNull(_descriptionController.text);
+
+    Navigator.pop(
+      context,
+      widget.existingItem.copyWith(
+        name: _nameController.text.trim(),
+        sku: sku,
+        barcode: barcode,
+        category: category,
+        unit: _unitController.text.trim(),
+        minStockLevel: _parseDouble(_minStockController.text),
+        purchasePrice: _parseDouble(_purchasePriceController.text),
+        salePrice: _parseDouble(_salePriceController.text),
+        supplierName: supplierName,
+        supplierPhone: supplierPhone,
+        description: description,
+        updatedAt: now,
+        clearSku: sku == null,
+        clearBarcode: barcode == null,
+        clearCategory: category == null,
+        clearSupplierName: supplierName == null,
+        clearSupplierPhone: supplierPhone == null,
+        clearDescription: description == null,
+      ),
+    );
+  }
+
+  String? _emptyToNull(String value) {
+    final trimmed = value.trim();
+    return trimmed.isEmpty ? null : trimmed;
+  }
 }

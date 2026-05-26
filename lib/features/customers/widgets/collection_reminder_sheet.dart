@@ -8,7 +8,7 @@ import '../../../data/models/collection_reminder_model.dart';
 import '../../../data/models/customer_model.dart';
 import '../../../data/models/customer_transaction_model.dart';
 import '../../../data/repositories/collection_reminders_repository.dart';
-import '../collection_message_generator.dart'; // import the file created above
+import '../collection_message_generator.dart';
 
 class CollectionReminderSheet extends StatefulWidget {
   const CollectionReminderSheet({
@@ -17,12 +17,14 @@ class CollectionReminderSheet extends StatefulWidget {
     this.transaction,
     this.totalAmount,
     this.dueDate,
+    this.businessName,
   });
 
   final CustomerModel customer;
   final CustomerTransactionModel? transaction;
   final double? totalAmount;
   final DateTime? dueDate;
+  final String? businessName;
 
   @override
   State<CollectionReminderSheet> createState() => _CollectionReminderSheetState();
@@ -36,6 +38,8 @@ class _CollectionReminderSheetState extends State<CollectionReminderSheet> {
   String _selectedTone = 'polite';
   bool _isLoading = false;
   CollectionReminderModel? _savedReminder;
+
+  double get _amount => widget.totalAmount ?? 0;
 
   @override
   void initState() {
@@ -53,17 +57,24 @@ class _CollectionReminderSheetState extends State<CollectionReminderSheet> {
   void _generateMessage() {
     final msg = CollectionMessageGenerator.generateMessage(
       customerName: widget.customer.name,
-      amount: widget.totalAmount ?? widget.customer.balance,
+      businessName: widget.businessName ?? '',
+      amount: _amount > 0 ? _amount : null,
       dueDate: widget.dueDate,
       tone: _selectedTone,
       paymentLink: _linkController.text.trim(),
     );
+
     _messageController.text = msg;
   }
 
-  Future<void> _saveDraft({String status = 'draft'}) async {
+  Future<void> _saveRecord({required String status}) async {
+    if (_messageController.text.trim().isEmpty) {
+      return;
+    }
+
     setState(() => _isLoading = true);
     try {
+      final now = DateTime.now();
       final reminder = CollectionReminderModel(
         id: _savedReminder?.id ?? '',
         userId: '',
@@ -72,52 +83,76 @@ class _CollectionReminderSheetState extends State<CollectionReminderSheet> {
         reminderType: 'whatsapp',
         tone: _selectedTone,
         title: '${widget.customer.name} - Tahsilat Hatırlatması',
-        message: _messageController.text,
-        amount: widget.totalAmount,
+        message: _messageController.text.trim(),
+        amount: _amount > 0 ? _amount : null,
         dueDate: widget.dueDate,
         status: status,
         phoneNumber: widget.customer.phone,
         metadata: {'payment_link': _linkController.text.trim()},
-        createdAt: DateTime.now(),
-        updatedAt: DateTime.now(),
+        createdAt: now,
+        updatedAt: now,
       );
 
       _savedReminder = await _repository.saveReminder(reminder);
-      setState(() => _isLoading = false);
     } catch (e) {
-      setState(() => _isLoading = false);
-      _showSnackBar('Not kaydedilirken bir hata oluştu: $e', isError: true);
+      _showSnackBar(e.toString().replaceFirst('Exception: ', ''), isError: true);
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
   Future<void> _copyToClipboard() async {
-    if (_messageController.text.trim().isEmpty) return;
-    await Clipboard.setData(ClipboardData(text: _messageController.text));
-    await _saveDraft(status: 'copied');
+    if (_messageController.text.trim().isEmpty) {
+      _showSnackBar('Mesaj boş olamaz.', isError: true);
+      return;
+    }
+
+    await Clipboard.setData(ClipboardData(text: _messageController.text.trim()));
+    await _saveRecord(status: 'copied');
     _showSnackBar('Tahsilat mesajı kopyalandı.');
   }
 
   Future<void> _openWhatsApp() async {
     final phone = widget.customer.phone;
     if (phone == null || phone.trim().isEmpty) {
-      _showSnackBar('Müşterinin telefon numarası bulunamadı. Lütfen kopyalayarak gönderin.', isError: true);
+      _showSnackBar(
+        'Müşteri telefon numarası bulunamadı. Mesajı kopyalayarak manuel gönderebilirsiniz.',
+        isError: true,
+      );
       return;
     }
 
-    final urlStr = CollectionMessageGenerator.buildWhatsappUrl(phone, _messageController.text);
-    final uri = Uri.parse(urlStr);
+    if (_messageController.text.trim().isEmpty) {
+      return;
+    }
 
+    final urlStr =
+        CollectionMessageGenerator.buildWhatsappUrl(phone, _messageController.text.trim());
+    if (urlStr == null) {
+      _showSnackBar('WhatsApp bağlantısı hazırlanamadı.', isError: true);
+      return;
+    }
+
+    final uri = Uri.parse(urlStr);
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
-      await _saveDraft(status: 'opened_whatsapp');
+      await _saveRecord(status: 'opened_whatsapp');
     } else {
-      _showSnackBar('WhatsApp açılamadı. Cihazınızda WhatsApp yüklü olduğundan emin olun.', isError: true);
+      _showSnackBar(
+        'WhatsApp açılamadı. Cihazınızda WhatsApp yüklü olduğundan emin olun.',
+        isError: true,
+      );
     }
   }
 
   void _showSnackBar(String msg, {bool isError = false}) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(msg), backgroundColor: isError ? AppColors.danger : AppColors.success),
+      SnackBar(
+        content: Text(msg),
+        backgroundColor: isError ? AppColors.danger : AppColors.success,
+      ),
     );
   }
 
@@ -126,7 +161,7 @@ class _CollectionReminderSheetState extends State<CollectionReminderSheet> {
     return Padding(
       padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
       child: Container(
-        constraints: const BoxConstraints(maxHeight: 750),
+        constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.85),
         decoration: const BoxDecoration(
           color: AppColors.surface,
           borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
@@ -140,8 +175,12 @@ class _CollectionReminderSheetState extends State<CollectionReminderSheet> {
               children: [
                 Center(
                   child: Container(
-                    width: 48, height: 4,
-                    decoration: BoxDecoration(color: AppColors.border, borderRadius: BorderRadius.circular(99)),
+                    width: 48,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: AppColors.border,
+                      borderRadius: BorderRadius.circular(99),
+                    ),
                   ),
                 ),
                 const SizedBox(height: 18),
@@ -149,7 +188,10 @@ class _CollectionReminderSheetState extends State<CollectionReminderSheet> {
                   children: [
                     Container(
                       padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(color: AppColors.success.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(10)),
+                      decoration: BoxDecoration(
+                        color: AppColors.success.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
                       child: const Icon(Icons.chat_outlined, color: AppColors.success),
                     ),
                     const SizedBox(width: 12),
@@ -157,72 +199,100 @@ class _CollectionReminderSheetState extends State<CollectionReminderSheet> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('Tahsilat Mesajı Oluştur', style: Theme.of(context).textTheme.titleLarge),
-                          Text('Profesyonel tahsilat hatırlatması hazırlayın', style: Theme.of(context).textTheme.bodyMedium),
+                          Text(
+                            'Tahsilat Mesajı Oluştur',
+                            style: Theme.of(context).textTheme.titleLarge,
+                          ),
+                          Text(
+                            'Müşterinize göndermek için kibar ve profesyonel bir tahsilat mesajı hazırlayın.',
+                            style: Theme.of(context).textTheme.bodyMedium,
+                          ),
                         ],
                       ),
                     ),
                   ],
                 ),
                 const SizedBox(height: 24),
-
-                // Müşteri Özeti
                 Container(
                   padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(color: AppColors.surfaceAlt, borderRadius: BorderRadius.circular(12)),
+                  decoration: BoxDecoration(
+                    color: AppColors.surfaceAlt,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(widget.customer.name, style: const TextStyle(fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
-                          if (widget.customer.phone != null) Text(widget.customer.phone!, style: const TextStyle(color: AppColors.textSecondary, fontSize: 13)),
-                        ],
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              widget.customer.name,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.textPrimary,
+                              ),
+                            ),
+                            if (widget.customer.phone != null)
+                              Text(
+                                widget.customer.phone!,
+                                style: const TextStyle(
+                                  color: AppColors.textSecondary,
+                                  fontSize: 13,
+                                ),
+                              ),
+                          ],
+                        ),
                       ),
+                      const SizedBox(width: 12),
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
-                          const Text('Bekleyen Tutar', style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+                          const Text(
+                            'Bekleyen Tutar',
+                            style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
+                          ),
                           Text(
-                            AppFormatters.formatCurrency(widget.totalAmount ?? widget.customer.balance),
-                            style: const TextStyle(color: AppColors.danger, fontWeight: FontWeight.w800),
+                            _amount > 0
+                                ? AppFormatters.formatCurrency(_amount)
+                                : 'Bekleyen tutar girilmemiş',
+                            style: const TextStyle(
+                              color: AppColors.danger,
+                              fontWeight: FontWeight.w800,
+                            ),
+                            textAlign: TextAlign.end,
                           ),
                         ],
-                      )
+                      ),
                     ],
                   ),
                 ),
                 const SizedBox(height: 24),
-
-                // Ton Seçimi
                 Text('Mesaj Tonu', style: Theme.of(context).textTheme.titleSmall),
                 const SizedBox(height: 8),
                 Wrap(
-                  spacing: 8, runSpacing: 8,
+                  spacing: 8,
+                  runSpacing: 8,
                   children: [
-                    _ToneChip('polite', 'Kibar', Icons.handshake_outlined),
-                    _ToneChip('clear', 'Net', Icons.done_all),
-                    _ToneChip('formal', 'Resmi', Icons.business_center_outlined),
-                    _ToneChip('reminder', 'Hatırlatma', Icons.notifications_none),
+                    _buildToneChip('polite', 'Kibar'),
+                    _buildToneChip('clear', 'Net'),
+                    _buildToneChip('formal', 'Resmi'),
+                    _buildToneChip('reminder', 'Hatırlatma'),
                   ],
                 ),
                 const SizedBox(height: 16),
-
-                // Link
                 TextField(
                   controller: _linkController,
                   decoration: const InputDecoration(
                     labelText: 'Ödeme bağlantısı (Opsiyonel)',
-                    hintText: 'Müşteriye göndereceğiniz ödeme linki varsa ekleyin',
+                    hintText: 'Varsa ödeme linkinizi ekleyebilirsiniz.',
                     prefixIcon: Icon(Icons.link),
                   ),
                   onChanged: (_) => _generateMessage(),
                 ),
                 const SizedBox(height: 20),
-
-                // Mesaj Kutusu
-                Text('Önizleme & Düzenleme', style: Theme.of(context).textTheme.titleSmall),
+                Text('Önizleme ve Düzenleme', style: Theme.of(context).textTheme.titleSmall),
                 const SizedBox(height: 8),
                 TextField(
                   controller: _messageController,
@@ -230,40 +300,83 @@ class _CollectionReminderSheetState extends State<CollectionReminderSheet> {
                   decoration: InputDecoration(
                     filled: true,
                     fillColor: AppColors.primaryNavySoft.withValues(alpha: 0.5),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide.none,
+                    ),
                   ),
-                  style: const TextStyle(color: AppColors.primaryNavy, fontSize: 14, height: 1.4),
+                  style: const TextStyle(
+                    color: AppColors.primaryNavy,
+                    fontSize: 14,
+                    height: 1.4,
+                  ),
                 ),
                 const SizedBox(height: 12),
                 const Text(
-                  'Mesaj WhatsApp’ta açılır. Gönderim sizin onayınızla yapılır. Müşteriye otomatik SMS gönderilmez.',
+                  'Mesaj WhatsApp’ta açılır. Gönderim sizin onayınızla yapılır.',
                   style: TextStyle(fontSize: 12, color: AppColors.textMuted),
                 ),
                 const SizedBox(height: 24),
-
-                // Aksiyonlar
-                _isLoading 
-                  ? const Center(child: CircularProgressIndicator())
-                  : Row(
-                      children: [
-                        Expanded(
-                          child: OutlinedButton.icon(
-                            onPressed: _copyToClipboard,
-                            icon: const Icon(Icons.copy),
-                            label: const Text('Kopyala'),
+                if (_isLoading)
+                  const Center(child: CircularProgressIndicator())
+                else
+                  Column(
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              onPressed: () {
+                                _generateMessage();
+                                _showSnackBar('Mesaj yenilendi.');
+                              },
+                              icon: const Icon(Icons.refresh),
+                              label: const Text('Yenile'),
+                            ),
                           ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: ElevatedButton.icon(
-                            onPressed: _openWhatsApp,
-                            style: ElevatedButton.styleFrom(backgroundColor: AppColors.success, foregroundColor: Colors.white),
-                            icon: const Icon(Icons.send_rounded),
-                            label: const Text('WhatsApp'),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              onPressed: _copyToClipboard,
+                              icon: const Icon(Icons.copy),
+                              label: const Text('Kopyala'),
+                            ),
                           ),
-                        ),
-                      ],
-                    ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: ElevatedButton.icon(
+                              onPressed: () async {
+                                await _saveRecord(status: 'sent_manually');
+                                _showSnackBar('Tahsilat mesajı kaydedildi.');
+                              },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColors.surfaceAlt,
+                                foregroundColor: AppColors.primaryNavy,
+                              ),
+                              icon: const Icon(Icons.save_outlined),
+                              label: const Text('Not Kaydet'),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: ElevatedButton.icon(
+                              onPressed: _openWhatsApp,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColors.success,
+                                foregroundColor: Colors.white,
+                              ),
+                              icon: const Icon(Icons.send_rounded),
+                              label: const Text('WhatsApp'),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
               ],
             ),
           ),
@@ -272,20 +385,16 @@ class _CollectionReminderSheetState extends State<CollectionReminderSheet> {
     );
   }
 
-  Widget _ToneChip(String value, String label, IconData icon) {
+  Widget _buildToneChip(String value, String label) {
     final isSelected = _selectedTone == value;
     return ChoiceChip(
-      label: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 16, color: isSelected ? Colors.white : AppColors.textSecondary),
-          const SizedBox(width: 6),
-          Text(label),
-        ],
-      ),
+      label: Text(label),
       selected: isSelected,
       selectedColor: AppColors.primaryNavy,
-      labelStyle: TextStyle(color: isSelected ? Colors.white : AppColors.textPrimary, fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal),
+      labelStyle: TextStyle(
+        color: isSelected ? Colors.white : AppColors.textPrimary,
+        fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+      ),
       onSelected: (selected) {
         if (selected) {
           setState(() {

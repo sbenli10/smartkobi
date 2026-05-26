@@ -10,6 +10,7 @@ import '../../data/models/customer_model.dart';
 import '../../data/models/customer_transaction_model.dart';
 import '../../data/repositories/customers_repository.dart';
 import 'customer_calculations.dart';
+import 'widgets/collection_reminder_sheet.dart';
 
 class CustomerDetailPage extends StatefulWidget {
   const CustomerDetailPage({
@@ -108,6 +109,7 @@ class _CustomerDetailPageState extends State<CustomerDetailPage> {
   Widget build(BuildContext context) {
     final customer = _customer;
     final overdueExists = _transactions.any((transaction) => transaction.isOverdue);
+    final toplamBekleyenTutar = pendingAmount(_transactions);
 
     return PageScaffold(
       title: customer?.name ?? 'Cari Detayı',
@@ -151,8 +153,11 @@ class _CustomerDetailPageState extends State<CustomerDetailPage> {
                     const SizedBox(height: 16),
                     _ReminderCard(
                       customer: customer,
-                      pendingAmountValue: pendingAmount(_transactions) + overdueAmount(_transactions),
-                      onCopy: _copyText,
+                      pendingAmountValue: toplamBekleyenTutar,
+                      onCopy: () => _copyText(
+                        'Tahsilat mesajı hazırlamak için asistana dokunun.',
+                        'Tahsilat asistanı kartı hazır.',
+                      ),
                     ),
                     const SizedBox(height: 16),
                     SmartCard(
@@ -399,6 +404,7 @@ class _CustomerAiInsightCard extends StatelessWidget {
   }
 }
 
+// _ReminderCard TANIMLAMASI VE İÇİNDEKİ MODAL ÇAĞRISI (Eğer ayrı bir widget olarak yazıldıysa):
 class _ReminderCard extends StatelessWidget {
   const _ReminderCard({
     required this.customer,
@@ -408,56 +414,29 @@ class _ReminderCard extends StatelessWidget {
 
   final CustomerModel customer;
   final double pendingAmountValue;
-  final void Function(String text, String message) onCopy;
+  final VoidCallback onCopy;
 
   @override
   Widget build(BuildContext context) {
-    final whatsappText = generateWhatsAppReminder(customer, pendingAmountValue);
-    final emailText = generateEmailReminder(customer, pendingAmountValue);
-
-    return SmartCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const SectionHeader(
-            title: 'Hatırlatma Metinleri',
-            subtitle: 'WhatsApp veya e-posta için kopyalanabilir metin üretin',
+    return OutlinedButton.icon(
+      onPressed: () {
+        showModalBottomSheet(
+          context: context,
+          isScrollControlled: true,
+          backgroundColor: Colors.transparent,
+          builder: (_) => CollectionReminderSheet(
+            customer: customer,
+            totalAmount: pendingAmountValue,
           ),
-          const SizedBox(height: 14),
-          Wrap(
-            spacing: 10,
-            runSpacing: 10,
-            children: [
-              // Customer Detail Page (Müşteri Detay Sayfası) içinde örnek kullanım:
-              OutlinedButton.icon(
-                onPressed: () {
-                  showModalBottomSheet(
-                    context: context,
-                    isScrollControlled: true,
-                    backgroundColor: Colors.transparent,
-                    builder: (_) => CollectionReminderSheet(
-                      customer: _customer!, // Mevcut müşteri modeli
-                      totalAmount: _customer!.balance, // veya sadece geciken tutar
-                    ),
-                  );
-                },
-                icon: const Icon(Icons.chat_bubble_outline, color: AppColors.success),
-                label: const Text('Tahsilat Mesajı', style: TextStyle(color: AppColors.success)),
-                style: OutlinedButton.styleFrom(side: const BorderSide(color: AppColors.success)),
-              ),
-              OutlinedButton.icon(
-                onPressed: () => onCopy(whatsappText, 'WhatsApp metni panoya kopyalandı.'),
-                icon: const Icon(Icons.chat_outlined, color: AppColors.gold500),
-                label: const Text('WhatsApp Metni Oluştur'),
-              ),
-              OutlinedButton.icon(
-                onPressed: () => onCopy(emailText, 'E-posta metni panoya kopyalandı.'),
-                icon: const Icon(Icons.mail_outline, color: AppColors.gold500),
-                label: const Text('E-posta Metni Oluştur'),
-              ),
-            ],
-          ),
-        ],
+        );
+      },
+      icon: const Icon(Icons.chat_bubble_outline, color: AppColors.success),
+      label: const Text(
+        'Tahsilat Mesajı',
+        style: TextStyle(color: AppColors.success),
+      ),
+      style: OutlinedButton.styleFrom(
+        side: const BorderSide(color: AppColors.success),
       ),
     );
   }

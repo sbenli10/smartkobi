@@ -8,7 +8,6 @@ import '../../core/theme/app_colors.dart';
 import '../../data/models/business_context_summary_model.dart';
 import '../../data/models/business_profile_model.dart';
 import '../../data/models/cashflow_projection_model.dart';
-import '../../data/models/notification_summary_model.dart';
 import '../../data/repositories/business_profile_repository.dart';
 import '../../data/repositories/cashflow_repository.dart';
 import '../../data/repositories/documents_repository.dart';
@@ -43,8 +42,6 @@ class _DashboardPageState extends State<DashboardPage> {
 
   bool _loading = true;
   String? _errorMessage;
-  BusinessContextSummaryModel _contextSummary = BusinessContextSummaryModel.empty();
-  BusinessProfileModel? _businessProfile;
   DashboardSummary? _summary;
   List<DashboardDailyAction> _dailyActions = const [];
 
@@ -68,7 +65,7 @@ class _DashboardPageState extends State<DashboardPage> {
 
       final contextSummary = await _contextService.buildContextSummary();
       final businessProfile = await _businessProfileRepository.fetchMyBusinessProfile();
-      
+
       try {
         await _notificationsRepository.generateAndSaveSmartReminders();
       } catch (_) {}
@@ -99,7 +96,9 @@ class _DashboardPageState extends State<DashboardPage> {
           DateTime(now.year, now.month, now.day).add(const Duration(days: 7)),
         );
         for (final entry in entries) {
-          if (entry.isOutflow && !entry.isPaid) upcomingPayments7d += entry.amount;
+          if (entry.isOutflow && !entry.isPaid) {
+            upcomingPayments7d += entry.amount;
+          }
         }
       } catch (_) {}
 
@@ -120,22 +119,28 @@ class _DashboardPageState extends State<DashboardPage> {
         highPriorityMissingDocuments: contextSummary.highPriorityMissingDocuments,
         supportScore: contextSummary.supportOverallScore,
         profileCompletion: businessProfile?.profileCompletion ?? contextSummary.profileCompletion,
-        totalDocuments: contextSummary.totalDocuments > 0 ? contextSummary.totalDocuments : documentsSummary.totalDocuments,
-        expiredDocumentsCount: contextSummary.expiredDocumentsCount > 0 ? contextSummary.expiredDocumentsCount : documentsSummary.expiredDocuments,
+        totalDocuments: contextSummary.totalDocuments > 0
+            ? contextSummary.totalDocuments
+            : documentsSummary.totalDocuments,
+        expiredDocumentsCount: contextSummary.expiredDocumentsCount > 0
+            ? contextSummary.expiredDocumentsCount
+            : documentsSummary.expiredDocuments,
         hasAnyBusinessData: _hasAnyBusinessData(contextSummary, businessProfile, documentsSummary, projection),
       );
 
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
 
       setState(() {
-        _contextSummary = contextSummary;
-        _businessProfile = businessProfile;
         _summary = summary;
         _dailyActions = buildDailyActions(summary);
         _loading = false;
       });
     } catch (error) {
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
       setState(() {
         _loading = false;
         _errorMessage = 'Ana sayfa verileri alınamadı.\n$error';
@@ -143,14 +148,25 @@ class _DashboardPageState extends State<DashboardPage> {
     }
   }
 
-  bool _hasAnyBusinessData(BusinessContextSummaryModel ctx, BusinessProfileModel? prof, DocumentSummary doc, CashflowProjectionModel? proj) {
-    return ctx.hasFinancialData || ctx.pendingReceivables > 0 || ctx.criticalStockCount > 0 || 
-           doc.totalDocuments > 0 || (prof?.profileCompletion ?? 0) > 0 || proj != null;
+  bool _hasAnyBusinessData(
+    BusinessContextSummaryModel ctx,
+    BusinessProfileModel? prof,
+    DocumentSummary doc,
+    CashflowProjectionModel? proj,
+  ) {
+    return ctx.hasFinancialData ||
+        ctx.pendingReceivables > 0 ||
+        ctx.criticalStockCount > 0 ||
+        doc.totalDocuments > 0 ||
+        (prof?.profileCompletion ?? 0) > 0 ||
+        proj != null;
   }
 
   Future<void> _logout() async {
     await Supabase.instance.client.auth.signOut();
-    if (!mounted) return;
+    if (!mounted) {
+      return;
+    }
     Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const LoginPagePremium()));
   }
 
@@ -295,9 +311,13 @@ class _DashboardHeroCard extends StatelessWidget {
     final riskLevel = summary.overallRiskLevel;
     Color badgeColor = AppColors.primaryNavy;
     
-    if (riskLevel == 'Acil' || riskLevel == 'Yüksek risk') badgeColor = AppColors.danger;
-    else if (riskLevel == 'Dikkat' || riskLevel == 'Riskli') badgeColor = AppColors.warning;
-    else if (riskLevel == 'Güvenli') badgeColor = AppColors.success;
+    if (riskLevel == 'Acil' || riskLevel == 'Yüksek risk') {
+      badgeColor = AppColors.danger;
+    } else if (riskLevel == 'Dikkat' || riskLevel == 'Riskli') {
+      badgeColor = AppColors.warning;
+    } else if (riskLevel == 'Güvenli') {
+      badgeColor = AppColors.success;
+    }
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
