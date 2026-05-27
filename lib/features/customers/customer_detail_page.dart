@@ -105,11 +105,57 @@ class _CustomerDetailPageState extends State<CustomerDetailPage> {
     );
   }
 
+  double _calculateReminderAmount(List<CustomerTransactionModel> transactions) {
+    final overdueTotal = overdueAmount(transactions);
+    if (overdueTotal > 0) {
+      return overdueTotal;
+    }
+
+    double receivableTotal = 0;
+    double paymentTotal = 0;
+
+    for (final transaction in transactions) {
+      final amount = transaction.amount;
+
+      switch (transaction.type) {
+        case 'receivable':
+          if (transaction.paymentStatus != 'paid') {
+            receivableTotal += amount;
+          }
+          break;
+        case 'payment':
+          paymentTotal += amount;
+          break;
+        default:
+          break;
+      }
+    }
+
+    final openAmount = receivableTotal - paymentTotal;
+    return openAmount > 0 ? openAmount : 0;
+  }
+
+  DateTime? _findReminderDueDate(List<CustomerTransactionModel> transactions) {
+    final openReceivables = transactions
+        .where((transaction) => transaction.type == 'receivable')
+        .where((transaction) => transaction.paymentStatus != 'paid')
+        .where((transaction) => transaction.dueDate != null)
+        .toList();
+
+    if (openReceivables.isEmpty) {
+      return null;
+    }
+
+    openReceivables.sort((a, b) => a.dueDate!.compareTo(b.dueDate!));
+    return openReceivables.first.dueDate;
+  }
+
   @override
   Widget build(BuildContext context) {
     final customer = _customer;
     final overdueExists = _transactions.any((transaction) => transaction.isOverdue);
-    final toplamBekleyenTutar = pendingAmount(_transactions);
+    final toplamBekleyenTutar = _calculateReminderAmount(_transactions);
+    final reminderDueDate = _findReminderDueDate(_transactions);
 
     return PageScaffold(
       title: customer?.name ?? 'Cari Detayı',
@@ -154,6 +200,7 @@ class _CustomerDetailPageState extends State<CustomerDetailPage> {
                     _ReminderCard(
                       customer: customer,
                       pendingAmountValue: toplamBekleyenTutar,
+                      dueDate: reminderDueDate,
                       onCopy: () => _copyText(
                         'Tahsilat mesajı hazırlamak için asistana dokunun.',
                         'Tahsilat asistanı kartı hazır.',
@@ -410,10 +457,12 @@ class _ReminderCard extends StatelessWidget {
     required this.customer,
     required this.pendingAmountValue,
     required this.onCopy,
+    this.dueDate,
   });
 
   final CustomerModel customer;
   final double pendingAmountValue;
+  final DateTime? dueDate;
   final VoidCallback onCopy;
 
   @override
@@ -427,6 +476,7 @@ class _ReminderCard extends StatelessWidget {
           builder: (_) => CollectionReminderSheet(
             customer: customer,
             totalAmount: pendingAmountValue,
+            dueDate: dueDate,
           ),
         );
       },

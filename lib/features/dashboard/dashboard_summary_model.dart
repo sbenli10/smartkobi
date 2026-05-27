@@ -19,6 +19,7 @@ class DashboardSummary {
     required this.totalDocuments,
     required this.expiredDocumentsCount,
     required this.hasAnyBusinessData,
+    this.openPriceAlertCount = 0, // 'required' kelimesi kaldırıldı, varsayılan 0 yapıldı.
   });
 
   final double monthlyIncome;
@@ -29,6 +30,7 @@ class DashboardSummary {
   final double upcomingPayments7d;
   final double expectedInflow30d;
   final double expectedOutflow30d;
+  final int openPriceAlertCount;
   final int cashScore;
   final int criticalStockCount;
   final int outOfStockCount;
@@ -51,7 +53,8 @@ class DashboardSummary {
     if (cashScore < 60 ||
         upcomingPayments7d > expectedInflow30d / 4 ||
         outOfStockCount > 0 ||
-        missingDocumentsCount > 0) {
+        missingDocumentsCount > 0 ||
+        openPriceAlertCount > 0) { // Fiyat artışı varsa risk seviyesi artar
       return 'Riskli';
     }
     if (cashScore < 80 || lowMarginProductCount > 0 || supportScore < 50) {
@@ -63,6 +66,10 @@ class DashboardSummary {
   String get dailySummaryText {
     if (!hasAnyBusinessData) {
       return 'Henüz yeterli veri yok. Gelir-gider, cari ve stok kayıtları eklendikçe SmartKOBİ daha net öneriler sunar.';
+    }
+    // Fiyat artışı tespit edildiyse, kârlılık uyarısı en üste alınır
+    if (openPriceAlertCount > 0) {
+      return 'Tedarikçi alış fiyatlarınızda artış var. Kâr marjınızı korumak için fiyatlarınızı kontrol etmeniz önerilir.';
     }
     if (overdueReceivables > 0 && cashScore < 60) {
       return 'Bugün önceliğiniz tahsilat ve nakit planı olmalı.';

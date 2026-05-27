@@ -1,6 +1,10 @@
 import 'dart:typed_data';
+import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+
 import '../models/receipt_scan_model.dart';
+import '../models/purchase_invoice_item_model.dart';
+import 'profit_leakage_repository.dart';
 
 class ReceiptScannerRepository {
   final SupabaseClient _supabase = Supabase.instance.client;
@@ -71,7 +75,7 @@ class ReceiptScannerRepository {
     final user = _supabase.auth.currentUser;
     if (user == null) throw Exception('Oturum bulunamadı.');
 
-    // Finans (Transactions) tablosuna gider kaydı ekle
+    // 1. Finans (Transactions) tablosuna gider kaydı ekle
     final txResponse = await _supabase.from('transactions').insert({
       'user_id': user.id,
       'type': 'expense',
@@ -80,13 +84,40 @@ class ReceiptScannerRepository {
       'category': category,
       'title': title,
       'description': description ?? 'Fiş/Fatura tarayıcı ile eklendi.',
-      // Eğer veritabanınızda tax_amount varsa buraya ekleyin
+      // Eğer veritabanınızda tax_amount varsa buraya ekleyebilirsin
     }).select().single();
 
-    // Scan kaydını güncelleyip tamamlandı olarak işaretle
+    // 2. Scan kaydını güncelleyip tamamlandı olarak işaretle
     await _supabase.from('receipt_scans').update({
       'scan_status': 'saved',
       'transaction_id': txResponse['id'],
     }).eq('id', scan.id);
+
+    // 3. Kâr Sızıntısı Analizi / Fiyat Radarı için kalemleri kaydet
+    if (scan.aiResult != null && scan.aiResult!['lineItems'] != null) {
+      final leakageRepo = ProfitLeakageRepository();
+      final items = scan.aiResult!['lineItems'] as List;
+      
+      for (var item in items) {
+        try {
+          await leakageRepo.addPurchaseItem(PurchaseInvoiceItemModel(
+            id: '', // Supabase (PostgreSQL) otomatik olarak UUID üretecek
+            userId: user.id,
+            // receiptScanId: scan.id, // Eğer modelinde bu alanı tanımlamadıysan yorum satırında kalabilir veya modeline ekleyebilirsin
+            supplierName: scan.extractedVendorName,
+            invoiceDate: transactionDate,
+            itemName: item['itemName']?.toString() ?? 'Bilinmeyen Ürün',
+            quantity: (item['quantity'] as num?)?.toDouble() ?? 1,
+            unit: item['unit']?.toString(),
+            unitPrice: (item['unitPrice'] as num?)?.toDouble(),
+            totalAmount: (item['totalAmount'] as num?)?.toDouble(),
+            source: 'receipt_scan',
+            createdAt: DateTime.now(),
+          ));
+        } catch (e) {
+          debugPrint('Fatura kalemi eklenirken hata: $e');
+        }
+      }
+    }
   }
 }

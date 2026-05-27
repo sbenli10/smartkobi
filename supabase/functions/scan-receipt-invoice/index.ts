@@ -46,17 +46,20 @@ serve(async (req) => {
     const prompt = `Sen Türkçe fiş, fatura, perakende satış fişi, yakıt fişi ve toptancı faturalarından temel muhasebe bilgilerini çıkaran bir asistansın. Sadece aşağıdaki JSON formatında veri dön. Markdown blokları kullanma.
     {
       "vendorName": "Satıcı Adı veya null",
-      "taxNumber": "Vergi/TC no veya null",
-      "documentNumber": "Fatura/Fiş no veya null",
       "documentDate": "YYYY-MM-DD veya null",
       "totalAmount": 150.50 (sayı veya null),
       "taxAmount": 22.95 (sayı veya null),
-      "netAmount": 127.55 (sayı veya null),
-      "currency": "TRY",
-      "suggestedCategory": "Yemek, Yakıt, Ofis, Tedarik, Kira, Personel, Pazarlama, Ulaşım, Genel Gider, Diğer seçeneklerinden biri",
-      "suggestedDescription": "Kısa bir açıklama",
-      "confidenceScore": 0 ile 100 arası sayı,
-      "warnings": ["Tarih okunamadı" gibi uyarılar veya boş liste]
+      "suggestedCategory": "Yemek, Yakıt, Ofis, Tedarik, Kira, Personel, Pazarlama, Ulaşım, Genel Gider, Diğer",
+      "confidenceScore": 90,
+      "lineItems": [
+        {
+          "itemName": "Un 50 kg",
+          "quantity": 1,
+          "unit": "çuval",
+          "unitPrice": 850,
+          "totalAmount": 850
+        }
+      ]
     }`;
 
     const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;

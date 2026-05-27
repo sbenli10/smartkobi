@@ -16,17 +16,20 @@ class SmartCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final card = Container(
+    const borderRadius = BorderRadius.all(Radius.circular(22));
+
+    final card = AnimatedContainer(
+      duration: const Duration(milliseconds: 160),
       padding: padding,
       decoration: BoxDecoration(
         color: AppColors.surface,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: borderRadius,
         border: Border.all(color: AppColors.border),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
-            blurRadius: 16,
-            offset: const Offset(0, 4),
+            color: AppColors.primaryNavy.withValues(alpha: 0.04),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
           ),
         ],
       ),
@@ -37,10 +40,15 @@ class SmartCard extends StatelessWidget {
       return card;
     }
 
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(20),
-      child: card,
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: borderRadius,
+        splashColor: AppColors.turquoise.withValues(alpha: 0.08),
+        highlightColor: AppColors.turquoise.withValues(alpha: 0.03),
+        child: card,
+      ),
     );
   }
 }

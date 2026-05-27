@@ -443,10 +443,10 @@ class _CashflowHeroCard extends StatelessWidget {
               width: compact ? double.infinity : 220,
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: AppColors.navy950,
+                color: AppColors.surface,
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(
-                  color: riskColor.withValues(alpha: 0.32),
+                  color: riskColor.withValues(alpha: 0.24),
                 ),
               ),
               child: Column(
@@ -1199,7 +1199,7 @@ class _AddCashflowEntrySheetState extends State<_AddCashflowEntrySheet> {
       padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
       child: Container(
         decoration: const BoxDecoration(
-          color: AppColors.navy900,
+          color: AppColors.surface,
           borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
         ),
         child: SafeArea(
@@ -1216,7 +1216,7 @@ class _AddCashflowEntrySheetState extends State<_AddCashflowEntrySheet> {
                       width: 48,
                       height: 4,
                       decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.18),
+                        color: AppColors.border,
                         borderRadius: BorderRadius.circular(99),
                       ),
                     ),
@@ -1434,9 +1434,9 @@ class _EmptyCashflowState extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: AppColors.navy950.withValues(alpha: 0.28),
+        color: AppColors.surfaceAlt,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+        border: Border.all(color: AppColors.border),
       ),
       child: Column(
         children: [
@@ -1542,7 +1542,7 @@ class _FilterChipButton extends StatelessWidget {
         child: Text(
           label,
           style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                color: selected ? AppColors.navy950 : Colors.white,
+                color: selected ? Colors.white : AppColors.textSecondary,
                 fontWeight: FontWeight.w700,
               ),
         ),

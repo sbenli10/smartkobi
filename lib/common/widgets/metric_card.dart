@@ -33,6 +33,7 @@ class MetricCard extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: color.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: color.withValues(alpha: 0.10)),
                 ),
                 child: Icon(icon, color: color, size: 20),
               ),
@@ -42,6 +43,7 @@ class MetricCard extends StatelessWidget {
                   title,
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                         color: AppColors.textSecondary,
+                        fontWeight: FontWeight.w600,
                       ),
                 ),
               ),

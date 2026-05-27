@@ -16,6 +16,7 @@ import '../features/settings/settings_page.dart';
 import '../features/support/support_analysis_page.dart';
 import '../features/transactions/transactions_page.dart';
 import '../data/repositories/notifications_repository.dart';
+import '../features/profit_leakage/profit_leakage_page.dart';
 
 class HomeShell extends StatefulWidget {
   const HomeShell({super.key});
@@ -32,9 +33,11 @@ class _HomeShellState extends State<HomeShell> {
 
   late final List<SmartKobiNavItem> _items;
 
+  // 'Analiz' grubu listeye eklendi, böylece Sidebar döngüsünde ekrana çizilecek
   late final List<String> _groupOrder = const [
     'Genel',
     'İşletme',
+    'Analiz',
     'Akıllı Asistan',
     'Büyüme',
     'Yönetim',
@@ -60,6 +63,15 @@ class _HomeShellState extends State<HomeShell> {
         selectedIcon: Icons.query_stats,
         page: KpiPage(),
         group: 'Genel',
+      ),
+     const SmartKobiNavItem(
+        id: 'profit-leakage',
+        label: 'Fiyat Radarı',
+        description: 'Alış fiyat artışlarını ve gizli zararları görün',
+        icon: Icons.price_change_outlined,
+        selectedIcon: Icons.price_change,
+        page: ProfitLeakagePage(),
+        group: 'İşletme', // <-- 'Analiz' yerine doğrudan 'İşletme' yaptık
       ),
       const SmartKobiNavItem(
         id: 'reports',
@@ -102,14 +114,13 @@ class _HomeShellState extends State<HomeShell> {
         group: 'İşletme',
         showInBottomNav: true,
       ),
-
-     SmartKobiNavItem( // <-- Baştaki const kaldırıldı
+      SmartKobiNavItem(
         id: 'inventory',
         label: 'Stok',
         description: 'Ürünler, hareketler ve kritik stok',
         icon: Icons.inventory_2_outlined,
         selectedIcon: Icons.inventory_2,
-        page: InventoryPage(), // <-- Burada const yok
+        page: InventoryPage(),
         group: 'İşletme',
         showInBottomNav: true,
       ),
@@ -182,9 +193,11 @@ class _HomeShellState extends State<HomeShell> {
   List<SmartKobiNavItem> get _primaryMobileItems =>
       _items.where((item) => item.showInBottomNav).toList();
 
+  // 'profit-leakage' kimliği eklendi, böylece mobil "Diğer" alt sayfasında da listelenecek
   List<SmartKobiNavItem> get _moreMobileItems =>
       [
         'cashflow',
+        'profit-leakage',
         'advisor',
         'support',
         'notifications',
@@ -218,30 +231,42 @@ class _HomeShellState extends State<HomeShell> {
         return Scaffold(
           backgroundColor: AppColors.scaffoldBackground,
           body: SafeArea(
-            child: Row(
-              children: [
-                if (useSidebar)
-                  _SmartSidebar(
-                    items: _items,
-                    groupOrder: _groupOrder,
-                    selectedIndex: _selectedIndex,
-                    expanded: sidebarExpanded,
-                    unreadNotificationCount: _unreadNotificationCount,
-                    onToggleExpanded: forceExpanded
-                        ? null
-                        : () => setState(() => _sidebarExpanded = !_sidebarExpanded),
-                    onSelect: _selectIndex,
-                  ),
-                Expanded(
-                  child: AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 220),
-                    child: KeyedSubtree(
-                      key: ValueKey(_selectedItem.id),
-                      child: _selectedItem.page,
+            child: Container(
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    AppColors.scaffoldBackground,
+                    AppColors.surfaceAlt,
+                  ],
+                ),
+              ),
+              child: Row(
+                children: [
+                  if (useSidebar)
+                    _SmartSidebar(
+                      items: _items,
+                      groupOrder: _groupOrder,
+                      selectedIndex: _selectedIndex,
+                      expanded: sidebarExpanded,
+                      unreadNotificationCount: _unreadNotificationCount,
+                      onToggleExpanded: forceExpanded
+                          ? null
+                          : () => setState(() => _sidebarExpanded = !_sidebarExpanded),
+                      onSelect: _selectIndex,
+                    ),
+                  Expanded(
+                    child: AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 220),
+                      child: KeyedSubtree(
+                        key: ValueKey(_selectedItem.id),
+                        child: _selectedItem.page,
+                      ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
           bottomNavigationBar: useSidebar
@@ -353,7 +378,7 @@ class _SmartSidebar extends StatelessWidget {
     }
 
     return Container(
-      width: expanded ? 268 : 100, // Menü daraltıldığında gereksiz genişliği azalttık
+      width: expanded ? 268 : 100,
       margin: const EdgeInsets.fromLTRB(18, 18, 12, 18),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
@@ -439,11 +464,18 @@ class _SidebarBrand extends StatelessWidget {
           height: 46,
           width: 46,
           decoration: BoxDecoration(
-            color: AppColors.primaryNavy,
+            gradient: const LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                AppColors.primaryNavy,
+                AppColors.turquoise,
+              ],
+            ),
             borderRadius: BorderRadius.circular(14),
             boxShadow: [
               BoxShadow(
-                color: AppColors.primaryNavy.withValues(alpha: 0.22),
+                color: AppColors.turquoise.withValues(alpha: 0.22),
                 blurRadius: 16,
                 offset: const Offset(0, 8),
               ),
@@ -519,7 +551,7 @@ class _SidebarNavTile extends StatelessWidget {
       ),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(16),
-        color: selected ? AppColors.primaryNavy.withValues(alpha: 0.06) : Colors.transparent,
+        color: selected ? AppColors.turquoiseSoft : Colors.transparent,
       ),
       child: Row(
         mainAxisAlignment: expanded ? MainAxisAlignment.start : MainAxisAlignment.center,
@@ -528,7 +560,7 @@ class _SidebarNavTile extends StatelessWidget {
             width: 4,
             height: 28,
             decoration: BoxDecoration(
-              color: selected ? AppColors.primaryNavy : Colors.transparent,
+              color: selected ? AppColors.turquoise : Colors.transparent,
               borderRadius: BorderRadius.circular(999),
             ),
           ),
@@ -668,7 +700,7 @@ class _SmartBottomNav extends StatelessWidget {
       child: NavigationBarTheme(
         data: NavigationBarThemeData(
           backgroundColor: AppColors.surface,
-          indicatorColor: AppColors.primaryNavySoft,
+          indicatorColor: AppColors.turquoiseSoft,
           labelTextStyle: WidgetStateProperty.resolveWith(
             (states) => TextStyle(
               color: states.contains(WidgetState.selected)
@@ -681,7 +713,7 @@ class _SmartBottomNav extends StatelessWidget {
           iconTheme: WidgetStateProperty.resolveWith(
             (states) => IconThemeData(
               color: states.contains(WidgetState.selected)
-                  ? AppColors.primaryNavy
+                  ? AppColors.turquoise
                   : AppColors.textSecondary,
             ),
           ),
@@ -786,7 +818,7 @@ class _MoreModulesSheet extends StatelessWidget {
                         borderRadius: BorderRadius.circular(16),
                       ),
                       tileColor: selected
-                          ? AppColors.primaryNavy.withValues(alpha: 0.06)
+                          ? AppColors.turquoiseSoft
                           : Colors.transparent,
                       leading: Icon(
                         selected ? item.selectedIcon : item.icon,

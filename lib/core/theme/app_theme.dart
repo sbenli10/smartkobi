@@ -10,13 +10,13 @@ class AppTheme {
       fontFamily: 'Roboto',
     );
 
-    final scheme = const ColorScheme.light(
+    const scheme = ColorScheme.light(
       primary: AppColors.primaryNavy,
-      secondary: AppColors.accentGold,
+      secondary: AppColors.turquoise,
       surface: AppColors.surface,
       error: AppColors.danger,
       onPrimary: Colors.white,
-      onSecondary: AppColors.primaryNavy,
+      onSecondary: Colors.white,
       onSurface: AppColors.textPrimary,
     );
 
@@ -26,25 +26,51 @@ class AppTheme {
       canvasColor: AppColors.surface,
       dividerColor: AppColors.border,
       cardColor: AppColors.surface,
+      dialogBackgroundColor: AppColors.surface,
+      textTheme: _textTheme,
       appBarTheme: const AppBarTheme(
         backgroundColor: AppColors.scaffoldBackground,
         foregroundColor: AppColors.textPrimary,
         elevation: 0,
         centerTitle: false,
+        surfaceTintColor: Colors.transparent,
+      ),
+      cardTheme: CardThemeData(
+        color: AppColors.surface,
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
+        margin: EdgeInsets.zero,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(22),
+          side: const BorderSide(color: AppColors.border),
+        ),
+      ),
+      dialogTheme: DialogThemeData(
+        backgroundColor: AppColors.surface,
+        surfaceTintColor: Colors.transparent,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      ),
+      bottomSheetTheme: const BottomSheetThemeData(
+        backgroundColor: AppColors.surface,
+        surfaceTintColor: Colors.transparent,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+        ),
       ),
       snackBarTheme: SnackBarThemeData(
-        backgroundColor: AppColors.primaryNavy,
+        backgroundColor: AppColors.surface,
         contentTextStyle: _textTheme.bodyMedium?.copyWith(
-          color: Colors.white,
+          color: AppColors.textPrimary,
           fontWeight: FontWeight.w600,
         ),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        actionTextColor: AppColors.turquoise,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
         behavior: SnackBarBehavior.floating,
+        elevation: 0,
       ),
-      textTheme: _textTheme,
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: AppColors.surfaceAlt,
+        fillColor: AppColors.surface,
         labelStyle: const TextStyle(color: AppColors.textSecondary),
         hintStyle: const TextStyle(color: AppColors.textMuted),
         prefixIconColor: AppColors.textSecondary,
@@ -59,29 +85,39 @@ class AppTheme {
         ),
         focusedBorder: const OutlineInputBorder(
           borderRadius: BorderRadius.all(Radius.circular(14)),
-          borderSide: BorderSide(color: AppColors.primaryNavy, width: 1.5),
+          borderSide: BorderSide(color: AppColors.turquoise, width: 1.5),
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
           borderSide: const BorderSide(color: AppColors.danger),
         ),
+        focusedErrorBorder: const OutlineInputBorder(
+          borderRadius: BorderRadius.all(Radius.circular(14)),
+          borderSide: BorderSide(color: AppColors.danger, width: 1.5),
+        ),
       ),
       chipTheme: base.chipTheme.copyWith(
         backgroundColor: AppColors.surfaceAlt,
-        selectedColor: AppColors.primaryNavySoft,
-        labelStyle: const TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w500),
-        secondaryLabelStyle: const TextStyle(color: AppColors.primaryNavy, fontWeight: FontWeight.w600),
+        selectedColor: AppColors.turquoiseSoft,
+        labelStyle: const TextStyle(
+          color: AppColors.textPrimary,
+          fontWeight: FontWeight.w500,
+        ),
+        secondaryLabelStyle: const TextStyle(
+          color: AppColors.primaryNavy,
+          fontWeight: FontWeight.w600,
+        ),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         side: const BorderSide(color: AppColors.border),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           minimumSize: const Size(0, 48),
-          elevation: 0, // Düz, modern görünüm
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          elevation: 0,
           backgroundColor: AppColors.primaryNavy,
           foregroundColor: Colors.white,
           textStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
         ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
@@ -91,23 +127,23 @@ class AppTheme {
           backgroundColor: AppColors.surface,
           foregroundColor: AppColors.primaryNavy,
           textStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
         ),
       ),
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
-          foregroundColor: AppColors.primaryNavy,
+          foregroundColor: AppColors.turquoise,
           textStyle: const TextStyle(fontWeight: FontWeight.w600),
         ),
       ),
       floatingActionButtonTheme: const FloatingActionButtonThemeData(
-        backgroundColor: AppColors.primaryNavy,
+        backgroundColor: AppColors.turquoise,
         foregroundColor: Colors.white,
-        elevation: 4,
+        elevation: 3,
       ),
       navigationRailTheme: NavigationRailThemeData(
         backgroundColor: AppColors.surface,
-        selectedIconTheme: const IconThemeData(color: AppColors.primaryNavy),
+        selectedIconTheme: const IconThemeData(color: AppColors.turquoise),
         unselectedIconTheme: const IconThemeData(color: AppColors.textSecondary),
         selectedLabelTextStyle: _textTheme.labelMedium?.copyWith(
           color: AppColors.primaryNavy,
@@ -120,10 +156,10 @@ class AppTheme {
       ),
       bottomNavigationBarTheme: const BottomNavigationBarThemeData(
         backgroundColor: AppColors.surface,
-        selectedItemColor: AppColors.primaryNavy,
+        selectedItemColor: AppColors.turquoise,
         unselectedItemColor: AppColors.textSecondary,
         type: BottomNavigationBarType.fixed,
-        elevation: 8,
+        elevation: 2,
       ),
     );
   }
@@ -132,6 +168,11 @@ class AppTheme {
     headlineMedium: TextStyle(
       color: AppColors.textPrimary,
       fontSize: 28,
+      fontWeight: FontWeight.w800,
+    ),
+    headlineSmall: TextStyle(
+      color: AppColors.textPrimary,
+      fontSize: 24,
       fontWeight: FontWeight.w800,
     ),
     titleLarge: TextStyle(

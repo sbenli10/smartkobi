@@ -327,8 +327,9 @@ class _SummaryPanel extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: AppColors.navy950.withValues(alpha: 0.36),
+                  color: AppColors.turquoiseSoft,
                   borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: AppColors.border),
                 ),
                 child: const Text(
                   'SmartKOBİ önerileri ön analiz niteliğindedir. Finansal, hukuki ve vergisel kararlar için uzman görüşü alınmalıdır.',
