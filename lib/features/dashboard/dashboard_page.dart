@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:async';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../common/widgets/metric_card.dart';
@@ -24,6 +25,8 @@ import '../inventory/inventory_page.dart';
 import '../profit_leakage/profit_leakage_page.dart';
 import '../receipt_scanner/receipt_scanner_page.dart';
 import '../transactions/transactions_page.dart';
+import '../voice_assistant/data/services/voice_assistant_service.dart';
+import '../voice_assistant/presentation/widgets/voice_confirmation_sheet.dart';
 import 'dashboard_daily_action_engine.dart';
 import 'dashboard_summary_model.dart';
 
@@ -40,16 +43,30 @@ class _DashboardPageState extends State<DashboardPage> {
   final _documentsRepository = DocumentsRepository();
   final _cashflowRepository = CashflowRepository();
   final _notificationsRepository = NotificationsRepository();
+  final _voiceAssistantService = VoiceAssistantService();
 
   bool _loading = true;
+  bool _isListening = false;
+  bool _isProcessingVoice = false;
+  bool _isVoiceDialogVisible = false;
   String? _errorMessage;
   DashboardSummary? _summary;
   List<DashboardDailyAction> _dailyActions = const [];
+  String? _lastRecognizedText;
+  Timer? _voiceResolveTimer;
 
   @override
   void initState() {
     super.initState();
     _load();
+    _voiceAssistantService.initializeTts();
+  }
+
+  @override
+  void dispose() {
+    _voiceResolveTimer?.cancel();
+    _voiceAssistantService.dispose();
+    super.dispose();
   }
 
   Future<void> _load() async {
@@ -155,7 +172,7 @@ class _DashboardPageState extends State<DashboardPage> {
       }
       setState(() {
         _loading = false;
-        _errorMessage = 'Ana sayfa verileri alınamadı.\n$error';
+        _errorMessage = 'Ana ekran verileri yüklenemedi.\n$error';
       });
     }
   }
@@ -224,11 +241,258 @@ class _DashboardPageState extends State<DashboardPage> {
     }
   }
 
+  Future<void> _handleVoiceAction() async {
+    if (_isListening) {
+      _voiceResolveTimer?.cancel();
+      await _voiceAssistantService.stopListening();
+      if (!mounted) {
+        return;
+      }
+      setState(() => _isListening = false);
+      final recognized = (_lastRecognizedText ?? '').trim();
+      if (recognized.isEmpty) {
+        _showSnackBar('Ses algılanamadı. Lütfen tekrar deneyin.', isError: true);
+        return;
+      }
+      _resolveVoiceCommand(recognized);
+      return;
+    }
+
+    try {
+      final ready = await _voiceAssistantService.initializeSpeech();
+      if (!ready) {
+        _showSnackBar('Mikrofon izni gerekli.', isError: true);
+        return;
+      }
+
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _isListening = true;
+        _lastRecognizedText = null;
+      });
+
+      await _voiceAssistantService.startListening(
+        onResult: (text, isFinal) {
+          _lastRecognizedText = _mergeVoiceText(_lastRecognizedText, text);
+          _scheduleVoiceResolution(isFinal: isFinal);
+        },
+      );
+
+      Future<void>.delayed(const Duration(seconds: 10), () async {
+        if (!mounted || !_isListening) {
+          return;
+        }
+
+        await _voiceAssistantService.stopListening();
+        if (!mounted) {
+          return;
+        }
+
+        setState(() => _isListening = false);
+        if ((_lastRecognizedText ?? '').trim().isEmpty) {
+          _showSnackBar('Ses algılanamadı. Lütfen tekrar deneyin.', isError: true);
+          return;
+        }
+        _resolveVoiceCommand(_lastRecognizedText!);
+      });
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+      setState(() => _isListening = false);
+      _showSnackBar('Sesli komut başlatılamadı. Lütfen tekrar deneyin.', isError: true);
+    }
+  }
+
+  Future<void> _resolveVoiceCommand(String text) async {
+    _voiceResolveTimer?.cancel();
+    await _voiceAssistantService.stopListening();
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      _isListening = false;
+      _isProcessingVoice = true;
+    });
+
+    _showVoiceProcessingDialog();
+
+    try {
+      if (text.trim().isEmpty) {
+        throw Exception('Ses algılanamadı. Lütfen tekrar deneyin.');
+      }
+
+      final draft = await _voiceAssistantService.processVoiceCommand(text);
+      _closeVoiceProcessingDialog();
+      if (!mounted) {
+        return;
+      }
+
+      final saved = await showVoiceConfirmationSheet(
+        context: context,
+        draft: draft,
+        service: _voiceAssistantService,
+      );
+
+      if (saved == true) {
+        await _load();
+      }
+    } catch (error) {
+      _closeVoiceProcessingDialog();
+      if (!mounted) {
+        return;
+      }
+      _showSnackBar(_friendlyVoiceError(error), isError: true);
+    } finally {
+      if (mounted) {
+        setState(() => _isProcessingVoice = false);
+      }
+    }
+  }
+
+  void _scheduleVoiceResolution({required bool isFinal}) {
+    _voiceResolveTimer?.cancel();
+    final recognized = (_lastRecognizedText ?? '').trim();
+    if (recognized.isEmpty) {
+      return;
+    }
+
+    final delay = isFinal ? const Duration(milliseconds: 1400) : const Duration(milliseconds: 2200);
+    _voiceResolveTimer = Timer(delay, () {
+      if (!mounted || !_isListening) {
+        return;
+      }
+
+      final latest = (_lastRecognizedText ?? '').trim();
+      if (latest.isEmpty) {
+        return;
+      }
+
+      if (!_looksLikeCommand(latest) && !isFinal) {
+        return;
+      }
+
+      _resolveVoiceCommand(latest);
+    });
+  }
+
+  String _mergeVoiceText(String? previous, String next) {
+    final oldText = (previous ?? '').trim();
+    final newText = next.trim();
+    if (oldText.isEmpty) {
+      return newText;
+    }
+    if (newText.length >= oldText.length) {
+      return newText;
+    }
+    if (oldText.contains(newText)) {
+      return oldText;
+    }
+    return '$oldText $newText';
+  }
+
+  bool _looksLikeCommand(String text) {
+    final normalized = text.toLowerCase();
+    final hasAmount = RegExp(r'(₺\s*)?\d').hasMatch(normalized);
+    final hasAction = [
+      'borc',
+      'borç',
+      'yaz',
+      'kitle',
+      'kasadan',
+      'cikti',
+      'çıktı',
+      'girdi',
+      'tahsilat',
+      'satis',
+      'satış',
+      'gider',
+      'gelir',
+      'odeme',
+      'ödeme',
+      'dusuver',
+      'düşüver',
+      'dus',
+      'düş',
+    ].any(normalized.contains);
+
+    return hasAmount && hasAction;
+  }
+
+  void _showVoiceProcessingDialog() {
+    _isVoiceDialogVisible = true;
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) {
+        return const Dialog(
+          backgroundColor: AppColors.surface,
+          child: Padding(
+            padding: EdgeInsets.all(20),
+            child: SizedBox(
+              width: 260,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2.2,
+                      color: AppColors.primaryNavy,
+                    ),
+                  ),
+                  SizedBox(width: 16),
+                  Expanded(
+                    child: Text('Söyledikleriniz analiz ediliyor...'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _closeVoiceProcessingDialog() {
+    if (!mounted || !_isVoiceDialogVisible) {
+      return;
+    }
+
+    _isVoiceDialogVisible = false;
+    final navigator = Navigator.of(context, rootNavigator: true);
+    if (navigator.canPop()) {
+      navigator.pop();
+    }
+  }
+
+  void _showSnackBar(String message, {bool isError = false}) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: isError ? AppColors.danger : AppColors.success,
+      ),
+    );
+  }
+
+  String _friendlyVoiceError(Object error) {
+    final message = error.toString().replaceFirst('Exception: ', '').trim();
+    if (message.isEmpty) {
+      return 'Sesli komut işlenemedi. Lütfen tekrar deneyin.';
+    }
+    return message;
+  }
+
   @override
   Widget build(BuildContext context) {
     return PageScaffold(
-      title: 'Bugünkü İş Planınız',
-      subtitle: 'Bugün işletmenizde neye öncelik vermeniz gerektiğini tek ekranda görün.',
+      title: 'Bugünkü iş planınız',
+      subtitle: 'Bugün işletmenizde nelere öncelik vermeniz gerektiğini tek ekrandan görün.',
       actions: [
         IconButton(
           onPressed: _loading ? null : _load,
@@ -237,10 +501,33 @@ class _DashboardPageState extends State<DashboardPage> {
         ),
         IconButton(
           onPressed: _logout,
-          tooltip: 'Çıkış Yap',
+          tooltip: 'Çıkış yap',
           icon: const Icon(Icons.logout, color: AppColors.textPrimary),
         ),
       ],
+      floatingActionButton: FloatingActionButton.extended(
+        heroTag: 'voiceAssistantFab',
+        onPressed: (_loading || _isProcessingVoice) ? null : _handleVoiceAction,
+        backgroundColor: _isListening ? AppColors.accentGold : AppColors.turquoise,
+        foregroundColor: _isListening ? AppColors.primaryNavy : Colors.white,
+        icon: _isProcessingVoice
+            ? const SizedBox(
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                ),
+              )
+            : Icon(_isListening ? Icons.graphic_eq : Icons.mic),
+        label: Text(
+          _isProcessingVoice
+              ? 'Analiz ediliyor...'
+              : _isListening
+                  ? 'Dinleniyor...'
+                  : 'Sesle işlem',
+        ),
+      ),
       child: _loading
           ? const Center(
               child: CircularProgressIndicator(color: AppColors.primaryNavy),
@@ -541,7 +828,7 @@ class _PriorityActionsSection extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _SectionHeading(
-          title: 'Bugün Öncelik Verilecekler',
+          title: 'Bugün öncelik vermeniz gerekenler',
           subtitle: 'Bugün işletmenizi en çok etkileyecek işleri öne çıkarır.',
         ),
         const SizedBox(height: 16),
@@ -566,7 +853,7 @@ class _PriorityActionsSection extends StatelessWidget {
                   child: Text(
                     isOnboarding
                         ? 'İlk kayıtlarınızı ekleyerek günlük önceliklerinizi oluşturmaya başlayın.'
-                        : 'Bugün kritik bir öncelik görünmüyor. İşletme durumunuz dengeli.',
+                        : 'Bugün kritik bir öncelik görünmüyor. İşletme görünümünüz dengeli.',
                     style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                           color: AppColors.textSecondary,
                           height: 1.4,
@@ -662,45 +949,45 @@ class _QuickActionsSection extends StatelessWidget {
   Widget build(BuildContext context) {
     const actions = [
       _QuickActionViewModel(
-        title: 'Gelir/Gider',
-        description: 'Yeni finans kaydı açın',
+        title: 'Gelir/gider',
+        description: 'Yeni finans kaydı ekleyin',
         icon: Icons.add_chart_outlined,
         module: 'finance',
       ),
       _QuickActionViewModel(
-        title: 'Fiş Tara',
-        description: 'Belgeden gider oluşturun',
+        title: 'Fiş tara',
+        description: 'Belgeden gider kaydı oluşturun',
         icon: Icons.document_scanner_outlined,
         module: 'receipt-scanner',
         isFeatured: true,
       ),
       _QuickActionViewModel(
-        title: 'Müşteri Ekle',
-        description: 'Cari listenizi büyütün',
+        title: 'Cari ekle',
+        description: 'Cari listenizi genişletin',
         icon: Icons.person_add_alt_1_outlined,
         module: 'customers',
       ),
       _QuickActionViewModel(
-        title: 'Tahsilat Mesajı',
+        title: 'Tahsilat mesajı',
         description: 'Nazik bir hatırlatma hazırlayın',
         icon: Icons.chat_bubble_outline,
         module: 'customers',
       ),
       _QuickActionViewModel(
-        title: 'Nakit Kaydı',
+        title: 'Nakit kaydı',
         description: 'Ödeme planınızı güncelleyin',
         icon: Icons.waterfall_chart_outlined,
         module: 'cashflow',
       ),
       _QuickActionViewModel(
-        title: 'Belge Yükle',
-        description: 'Eksik evrak ekleyin',
+        title: 'Belge yükle',
+        description: 'Eksik belge ekleyin',
         icon: Icons.upload_file_outlined,
         module: 'documents',
       ),
       _QuickActionViewModel(
-        title: 'AI Danışman',
-        description: 'Günlük yorumu derinleştirin',
+        title: 'Yapay zekâ danışmanı',
+        description: 'Günlük yorumu ayrıntılandırın',
         icon: Icons.smart_toy_outlined,
         module: 'advisor',
       ),
@@ -710,8 +997,8 @@ class _QuickActionsSection extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const _SectionHeading(
-          title: 'Hızlı İşlemler',
-          subtitle: 'En sık kullanılan işlemleri tek dokunuşla başlatın.',
+          title: 'Hızlı işlemler',
+          subtitle: 'En sık kullandığınız işlemleri tek dokunuşla başlatın.',
         ),
         const SizedBox(height: 16),
         LayoutBuilder(
@@ -834,8 +1121,8 @@ class _FinanceSummarySection extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const _SectionHeading(
-          title: 'Kısa Finans Özeti',
-          subtitle: 'Bugünkü kararlar için en gerekli finans göstergeleri.',
+          title: 'Kısa finans özeti',
+          subtitle: 'Bugünkü kararlarınız için en gerekli finans göstergeleri.',
         ),
         const SizedBox(height: 16),
         LayoutBuilder(
@@ -852,7 +1139,7 @@ class _FinanceSummarySection extends StatelessWidget {
                 SizedBox(
                   width: width,
                   child: MetricCard(
-                    title: 'Aylık Gelir',
+                    title: 'Aylık gelir',
                     value: AppFormatters.formatCurrency(summary.monthlyIncome),
                     icon: Icons.north_east_rounded,
                     color: AppColors.success,
@@ -862,7 +1149,7 @@ class _FinanceSummarySection extends StatelessWidget {
                 SizedBox(
                   width: width,
                   child: MetricCard(
-                    title: 'Aylık Gider',
+                    title: 'Aylık gider',
                     value: AppFormatters.formatCurrency(summary.monthlyExpense),
                     icon: Icons.south_east_rounded,
                     color: AppColors.warning,
@@ -872,7 +1159,7 @@ class _FinanceSummarySection extends StatelessWidget {
                 SizedBox(
                   width: width,
                   child: MetricCard(
-                    title: 'Net Kâr/Zarar',
+                    title: 'Net kâr/zarar',
                     value: AppFormatters.formatCurrency(summary.netProfit),
                     icon: Icons.account_balance_wallet_outlined,
                     color: netProfitColor,
@@ -956,7 +1243,7 @@ class _SmartKobiCommentCard extends StatelessWidget {
               const SizedBox(width: 12),
               Expanded(
                 child: Text(
-                  'SmartKOBİ Yorumu',
+                  'SmartKOBİ yorumu',
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
                         color: AppColors.primaryNavy,
                         fontWeight: FontWeight.w700,
@@ -1129,7 +1416,7 @@ class _DashboardErrorState extends StatelessWidget {
               ),
               const SizedBox(height: 16),
               Text(
-                'Veriler alınamadı',
+                'Veriler yüklenemedi',
                 style: Theme.of(context).textTheme.titleLarge,
               ),
               const SizedBox(height: 10),
@@ -1144,7 +1431,7 @@ class _DashboardErrorState extends StatelessWidget {
               ElevatedButton.icon(
                 onPressed: onRetry,
                 icon: const Icon(Icons.refresh),
-                label: const Text('Tekrar Dene'),
+                label: const Text('Tekrar deneyin'),
               ),
             ],
           ),

@@ -9,6 +9,7 @@ class TransactionModel {
     required this.title,
     required this.category,
     required this.amount,
+    this.contactName,
     required this.transactionDate,
     required this.paymentStatus,
     this.description,
@@ -23,6 +24,7 @@ class TransactionModel {
   final String title;
   final String category;
   final double amount;
+  final String? contactName;
   final DateTime transactionDate;
   final String paymentStatus;
   final String? description;
@@ -42,12 +44,14 @@ class TransactionModel {
     String? title,
     String? category,
     double? amount,
+    String? contactName,
     DateTime? transactionDate,
     String? paymentStatus,
     String? description,
     DateTime? createdAt,
     DateTime? updatedAt,
     bool clearBusinessId = false,
+    bool clearContactName = false,
     bool clearDescription = false,
   }) {
     return TransactionModel(
@@ -58,6 +62,7 @@ class TransactionModel {
       title: title ?? this.title,
       category: category ?? this.category,
       amount: amount ?? this.amount,
+      contactName: clearContactName ? null : contactName ?? this.contactName,
       transactionDate: transactionDate ?? this.transactionDate,
       paymentStatus: paymentStatus ?? this.paymentStatus,
       description: clearDescription ? null : description ?? this.description,
@@ -75,6 +80,7 @@ class TransactionModel {
       title: json['title'] as String,
       category: json['category'] as String,
       amount: (json['amount'] as num).toDouble(),
+      contactName: json['contact_name'] as String?,
       transactionDate: DateTime.parse(json['transaction_date'] as String),
       paymentStatus: json['payment_status'] as String,
       description: json['description'] as String?,
@@ -92,6 +98,7 @@ class TransactionModel {
       'title': title,
       'category': category,
       'amount': amount,
+      'contact_name': contactName,
       'transaction_date': transactionDate.toIso8601String().split('T').first,
       'payment_status': paymentStatus,
       'description': description,

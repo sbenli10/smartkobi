@@ -24,9 +24,9 @@ class TransactionsRepository {
     } on AuthException {
       rethrow;
     } on PostgrestException catch (e) {
-      throw Exception('Finans kayıtları alınamadı: ${e.message}');
-    } catch (e) {
-      throw Exception('Finans kayıtları alınırken bir sorun oluştu.');
+      throw Exception('Finans kayıtları yüklenemedi. Lütfen tekrar deneyin.');
+    } catch (_) {
+      throw Exception('Finans kayıtları yüklenemedi. Lütfen tekrar deneyin.');
     }
   }
 
@@ -41,19 +41,14 @@ class TransactionsRepository {
         ..remove('created_at')
         ..remove('updated_at');
 
-      final data = await _client
-          .from('transactions')
-          .insert(payload)
-          .select()
-          .single();
-
+      final data = await _insertTransactionPayload(payload);
       return TransactionModel.fromJson(data);
     } on AuthException {
       rethrow;
     } on PostgrestException catch (e) {
-      throw Exception('İşlem kaydedilemedi: ${e.message}');
-    } catch (e) {
-      throw Exception('İşlem kaydedilirken bir sorun oluştu.');
+      throw Exception('İşlem kaydedilemedi. Lütfen tekrar deneyin.');
+    } catch (_) {
+      throw Exception('İşlem kaydedilemedi. Lütfen tekrar deneyin.');
     }
   }
 
@@ -76,9 +71,9 @@ class TransactionsRepository {
     } on AuthException {
       rethrow;
     } on PostgrestException catch (e) {
-      throw Exception('İşlem güncellenemedi: ${e.message}');
-    } catch (e) {
-      throw Exception('İşlem güncellenirken bir sorun oluştu.');
+      throw Exception('İşlem güncellenemedi. Lütfen tekrar deneyin.');
+    } catch (_) {
+      throw Exception('İşlem güncellenemedi. Lütfen tekrar deneyin.');
     }
   }
 
@@ -89,10 +84,52 @@ class TransactionsRepository {
     } on AuthException {
       rethrow;
     } on PostgrestException catch (e) {
-      throw Exception('İşlem silinemedi: ${e.message}');
-    } catch (e) {
-      throw Exception('İşlem silinirken bir sorun oluştu.');
+      throw Exception('İşlem silinemedi. Lütfen tekrar deneyin.');
+    } catch (_) {
+      throw Exception('İşlem silinemedi. Lütfen tekrar deneyin.');
     }
+  }
+
+  Future<Map<String, dynamic>> _insertTransactionPayload(
+    Map<String, dynamic> payload,
+  ) async {
+    try {
+      final data = await _client
+          .from('transactions')
+          .insert(payload)
+          .select()
+          .single();
+      return Map<String, dynamic>.from(data);
+    } on PostgrestException catch (e) {
+      if (_isMissingContactNameColumnError(e) && payload.containsKey('contact_name')) {
+        final fallbackPayload = Map<String, dynamic>.from(payload);
+        fallbackPayload.remove('contact_name');
+
+        final existingDescription = fallbackPayload['description']?.toString().trim();
+        final contactName = payload['contact_name']?.toString().trim();
+        if (contactName != null && contactName.isNotEmpty) {
+          fallbackPayload['description'] =
+              (existingDescription == null || existingDescription.isEmpty)
+              ? 'Kişi/Firma: $contactName'
+              : '$existingDescription\nKişi/Firma: $contactName';
+        }
+
+        final data = await _client
+            .from('transactions')
+            .insert(fallbackPayload)
+            .select()
+            .single();
+        return Map<String, dynamic>.from(data);
+      }
+
+      rethrow;
+    }
+  }
+
+  bool _isMissingContactNameColumnError(PostgrestException error) {
+    final message = error.message.toLowerCase();
+    return message.contains('contact_name') &&
+        (message.contains('column') || message.contains('schema cache'));
   }
 
   User _requireUser() {

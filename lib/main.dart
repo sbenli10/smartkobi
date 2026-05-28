@@ -4,7 +4,7 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'core/theme/app_theme.dart';
-import 'features/auth/login_page.dart';
+import 'features/auth/welcome_page.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -26,7 +26,7 @@ class SmartKobiApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       title: 'SmartKOBİ',
       theme: AppTheme.lightTheme,
-      home: const LoginPagePremium(),
+      home: const AuthWelcomePage(),
     );
   }
 }

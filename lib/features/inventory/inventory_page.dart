@@ -139,7 +139,7 @@ class _InventoryPageState extends State<InventoryPage> {
       await _loadItems();
 
       if (!mounted) return;
-      _showSnackBar('Ürün başarıyla kaydedildi.');
+      _showSnackBar('Ürün başarıyla eklendi.');
     } catch (e) {
       if (!mounted) return;
 
@@ -186,7 +186,7 @@ class _InventoryPageState extends State<InventoryPage> {
       builder: (context) {
         return AlertDialog(
           backgroundColor: AppColors.surface,
-          title: const Text('Ürünü Sil'),
+          title: const Text('Ürünü sil'),
           content: Text(
             '${item.name} ürününü silmek istediğinize emin misiniz? Bu işlem ürüne bağlı stok hareketlerini de kaldırır.',
           ),
@@ -307,7 +307,7 @@ class _InventoryPageState extends State<InventoryPage> {
         ),
         IconButton(
           onPressed: _scanBarcode,
-          tooltip: 'Barkod Tara',
+          tooltip: 'Barkod tara',
           icon: const Icon(Icons.qr_code_scanner),
         ),
       ],
@@ -315,7 +315,7 @@ class _InventoryPageState extends State<InventoryPage> {
         heroTag: 'inventoryFab',
         onPressed: () => _openAddItemSheet(),
         icon: const Icon(Icons.add_box_outlined),
-        label: const Text('Yeni Ürün'),
+        label: const Text('Yeni ürün'),
       ),
       child: _loading
           ? const Center(child: Text('Stok kayıtları yükleniyor...'))
@@ -332,7 +332,7 @@ class _InventoryPageState extends State<InventoryPage> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         const SectionHeader(
-                          title: 'Arama ve Filtre',
+                          title: 'Arama ve filtre',
                           subtitle:
                               'Ürün adı, SKU, barkod veya kategori ile arayın.',
                         ),
@@ -353,23 +353,23 @@ class _InventoryPageState extends State<InventoryPage> {
                           children: [
                             _buildFilterChip('Tümü', InventoryFilter.all),
                             _buildFilterChip(
-                              'Kritik Stok',
+                              'Kritik stok',
                               InventoryFilter.critical,
                             ),
                             _buildFilterChip(
-                              'Stokta Var',
+                              'Stokta var',
                               InventoryFilter.inStock,
                             ),
                             _buildFilterChip(
-                              'Stokta Yok',
+                              'Stokta yok',
                               InventoryFilter.outOfStock,
                             ),
                             _buildFilterChip(
-                              'Düşük Kâr Marjı',
+                              'Düşük kâr marjı',
                               InventoryFilter.lowMargin,
                             ),
                             _buildFilterChip(
-                              'Pasif Ürünler',
+                              'Pasif ürünler',
                               InventoryFilter.inactive,
                             ),
                           ],
@@ -419,42 +419,42 @@ class _InventorySummaryCards extends StatelessWidget {
   Widget build(BuildContext context) {
     final cards = [
       _SummaryCardData(
-        title: 'Toplam Ürün',
+        title: 'Toplam ürün',
         value: totalProductCount(items).toString(),
         subtitle: 'Aktif ve pasif tüm ürünler',
         icon: Icons.inventory_2_outlined,
         color: AppColors.gold500,
       ),
       _SummaryCardData(
-        title: 'Toplam Alış Değeri',
+        title: 'Toplam alış değeri',
         value: AppFormatters.formatCurrency(totalStockValue(items)),
         subtitle: 'Alış fiyatına göre stok büyüklüğü',
         icon: Icons.savings_outlined,
         color: AppColors.info,
       ),
       _SummaryCardData(
-        title: 'Kritik Stok',
+        title: 'Kritik stok',
         value: criticalStockCount(items).toString(),
         subtitle: 'Minimum seviyeye yaklaşan ürünler',
         icon: Icons.warning_amber_outlined,
         color: AppColors.warning,
       ),
       _SummaryCardData(
-        title: 'Stokta Olmayan',
+        title: 'Stokta olmayan',
         value: outOfStockCount(items).toString(),
         subtitle: 'Satış fırsatı kaybı riski taşıyan ürünler',
         icon: Icons.remove_shopping_cart_outlined,
         color: AppColors.danger,
       ),
       _SummaryCardData(
-        title: 'Ortalama Kâr Marjı',
+        title: 'Ortalama kâr marjı',
         value: AppFormatters.formatPercent(averageProfitMargin(items)),
         subtitle: 'Ürün portföyü kârlılık ortalaması',
         icon: Icons.percent_outlined,
         color: AppColors.gold400,
       ),
       _SummaryCardData(
-        title: 'Toplam Satış Değeri',
+        title: 'Toplam satış değeri',
         value: AppFormatters.formatCurrency(totalSaleValue(items)),
         subtitle: 'Satış fiyatı üzerinden potansiyel değer',
         icon: Icons.sell_outlined,
@@ -542,8 +542,8 @@ class _InventoryAiInsightCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const SectionHeader(
-            title: 'SmartKOBİ AI Stok Yorumu',
-            subtitle: 'Stok ve kârlılık görünümüne göre hızlı yorum',
+            title: 'SmartKOBİ yapay zekâ stok yorumu',
+            subtitle: 'Stok ve kârlılık görünümüne göre kısa yorum',
           ),
           const SizedBox(height: 12),
           Container(
@@ -645,7 +645,7 @@ class _InventoryItemCard extends StatelessWidget {
                             Icons.delete_outline,
                             color: AppColors.danger,
                           ),
-                          title: Text('Ürünü Sil'),
+                          title: Text('Ürünü sil'),
                         ),
                       ),
                     ],
@@ -705,7 +705,7 @@ class _InventoryItemCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 10),
                     _ValueBox(
-                      title: 'Kâr Marjı',
+                      title: 'Kâr marjı',
                       value:
                           AppFormatters.formatPercent(item.profitMarginPercent),
                       color: item.profitMarginPercent < 15
@@ -736,7 +736,7 @@ class _InventoryItemCard extends StatelessWidget {
                   const SizedBox(width: 12),
                   Expanded(
                     child: _ValueBox(
-                      title: 'Kâr Marjı',
+                      title: 'Kâr marjı',
                       value:
                           AppFormatters.formatPercent(item.profitMarginPercent),
                       color: item.profitMarginPercent < 15
@@ -874,7 +874,7 @@ class _AddInventoryItemSheetState extends State<_AddInventoryItemSheet> {
                   ),
                   const SizedBox(height: 18),
                   Text(
-                    _isEditMode ? 'Ürün Bilgilerini Güncelle' : 'Yeni Ürün',
+                    _isEditMode ? 'Ürün bilgilerini güncelle' : 'Yeni ürün',
                     style: Theme.of(context).textTheme.titleLarge,
                   ),
                   const SizedBox(height: 6),
@@ -891,7 +891,7 @@ class _AddInventoryItemSheetState extends State<_AddInventoryItemSheet> {
                     Icons.inventory_2_outlined,
                     validator: (value) {
                       if (value == null || value.trim().isEmpty) {
-                        return 'Ürün adı zorunlu';
+                        return 'Ürün adını girin';
                       }
                       return null;
                     },
@@ -909,7 +909,7 @@ class _AddInventoryItemSheetState extends State<_AddInventoryItemSheet> {
                   const SizedBox(height: 12),
                   _field(
                     _unitController,
-                    'Birim (adet, kg vs.)',
+                    'Birim (adet, kg vb.)',
                     Icons.straighten_outlined,
                     validator: (value) {
                       if (value == null || value.trim().isEmpty) {
@@ -1114,12 +1114,12 @@ class _EmptyInventoryState extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           Text(
-            'Henüz ürün eklenmedi.',
+            'Henüz ürün bulunmuyor.',
             style: Theme.of(context).textTheme.titleMedium,
           ),
           const SizedBox(height: 8),
           Text(
-            'İlk ürününüzü ekleyerek stok, fiyat ve kâr marjı takibini başlatın.',
+            'İlk ürününüzü ekleyerek stok, fiyat ve kâr marjı takibini başlatabilirsiniz.',
             textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.bodyMedium,
           ),
@@ -1127,7 +1127,7 @@ class _EmptyInventoryState extends StatelessWidget {
           ElevatedButton.icon(
             onPressed: () => onCreate(),
             icon: const Icon(Icons.add),
-            label: const Text('İlk Ürünü Ekle'),
+            label: const Text('İlk ürünü ekle'),
           ),
         ],
       ),

@@ -98,7 +98,7 @@ class _CustomersPageState extends State<CustomersPage> {
       if (!mounted) {
         return;
       }
-      _showSnackBar('Müşteri başarıyla kaydedildi.');
+      _showSnackBar('Cari hesap başarıyla oluşturuldu.');
     } catch (e) {
       if (!mounted) {
         return;
@@ -122,7 +122,7 @@ class _CustomersPageState extends State<CustomersPage> {
 
     return PageScaffold(
       title: 'Cari',
-      subtitle: 'Müşteri alacak, borç ve tahsilat durumunuzu takip edin.',
+      subtitle: 'Cari hesap, alacak ve tahsilat durumunu takip edin.',
       actions: [
         IconButton(
           onPressed: _loading ? null : _loadCustomers,
@@ -134,7 +134,7 @@ class _CustomersPageState extends State<CustomersPage> {
         heroTag: 'customersFab',
         onPressed: _openAddCustomerSheet,
         icon: const Icon(Icons.person_add_alt_1),
-        label: const Text('Yeni Müşteri'),
+        label: const Text('Yeni cari ekle'),
       ),
       child: _loading
           ? const Center(child: Text('Cari kayıtlar yükleniyor...'))
@@ -149,8 +149,8 @@ class _CustomersPageState extends State<CustomersPage> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const SectionHeader(
-                        title: 'Arama ve Filtre',
-                        subtitle: 'Müşteri adı, telefon veya e-posta ile filtreleyin',
+                        title: 'Arama ve filtre',
+                        subtitle: 'Cari adı, telefon veya e-posta ile filtreleyin',
                       ),
                       const SizedBox(height: 14),
                       TextField(
@@ -222,7 +222,7 @@ class _CustomerSummaryGrid extends StatelessWidget {
 
     final items = [
       _SummaryItem(
-        title: 'Toplam Müşteri',
+        title: 'Toplam cari',
         value: customers.length.toString(),
         subtitle: 'Aktif cari hesap adedi',
         icon: Icons.people_alt_outlined,
@@ -231,19 +231,19 @@ class _CustomerSummaryGrid extends StatelessWidget {
       _SummaryItem(
         title: 'Toplam Alacak',
         value: currency.format(totalReceivable),
-        subtitle: 'Pozitif bakiye taşıyan müşteri toplamı',
+        subtitle: 'Pozitif bakiye taşıyan cari toplamı',
         icon: Icons.account_balance_wallet_outlined,
         color: AppColors.success,
       ),
       _SummaryItem(
-        title: 'Geciken Tahsilat',
+        title: 'Geciken tahsilat',
         value: currency.format(overdueTotal),
         subtitle: 'Vadesi geçmiş açık alacaklar',
         icon: Icons.warning_amber_outlined,
         color: AppColors.warning,
       ),
       _SummaryItem(
-        title: 'Yüksek Riskli Cari',
+        title: 'Yüksek riskli cari',
         value: highRiskCount.toString(),
         subtitle: 'Öncelikli takip gerektiren hesaplar',
         icon: Icons.priority_high_outlined,
@@ -321,10 +321,10 @@ class _CustomersInsightCard extends StatelessWidget {
     String message;
     if (customers.isEmpty) {
       message =
-          'Müşterilerinizi eklediğinizde SmartKOBİ tahsilat risklerini ve cari bakiyeleri analiz eder.';
+          'Cari hesaplarınızı eklediğinizde SmartKOBİ tahsilat risklerini ve cari bakiyeleri analiz eder.';
     } else if (customers.any((customer) => customer.hasOverdueCollection)) {
       message =
-          'Bazı müşterilerde geciken tahsilat görünüyor. Öncelikli tahsilat planı oluşturmanız önerilir.';
+          'Bazı cari hesaplarda geciken tahsilatlar görünüyor. Öncelikli bir tahsilat planı oluşturmanız önerilir.';
     } else if (customers.any((customer) => customer.isHighRisk)) {
       message =
           'Yüksek riskli cari hesaplar için yeni satışlarda peşinat veya kısa vade önerilir.';
@@ -337,8 +337,8 @@ class _CustomersInsightCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const SectionHeader(
-            title: 'SmartKOBİ AI Cari Yorumu',
-            subtitle: 'Cari görünümünüze göre üretilen hızlı yorum',
+            title: 'SmartKOBİ yapay zekâ cari yorumu',
+            subtitle: 'Cari görünümünüze göre oluşturulan kısa yorum',
           ),
           const SizedBox(height: 12),
           Container(
@@ -423,7 +423,7 @@ class _CustomerCard extends StatelessWidget {
             children: [
               Expanded(
                 child: _BalanceBox(
-                  title: 'Cari Bakiye',
+                  title: 'Cari bakiye',
                   value: customer.displayBalance,
                   color: customer.currentBalance >= 0 ? AppColors.gold500 : AppColors.danger,
                 ),
@@ -517,17 +517,17 @@ class _AddCustomerSheetState extends State<_AddCustomerSheet> {
                     ),
                   ),
                   const SizedBox(height: 18),
-                  Text('Yeni Müşteri', style: Theme.of(context).textTheme.titleLarge),
+                  Text('Yeni cari ekle', style: Theme.of(context).textTheme.titleLarge),
                   const SizedBox(height: 6),
                   Text(
-                    'Cari takibi başlatmak için temel müşteri bilgilerini girin.',
+                    'Cari takibini başlatmak için temel bilgileri girin.',
                     style: Theme.of(context).textTheme.bodyMedium,
                   ),
                   const SizedBox(height: 16),
-                  _buildField(_nameController, 'Firma / Müşteri adı', Icons.business_outlined,
+                  _buildField(_nameController, 'Cari adı', Icons.business_outlined,
                       validator: (value) {
                     if (value == null || value.trim().isEmpty) {
-                      return 'Müşteri adı zorunlu';
+                      return 'Cari adını girin';
                     }
                     return null;
                   }),
@@ -547,7 +547,7 @@ class _AddCustomerSheetState extends State<_AddCustomerSheet> {
                       }
                       final emailRegex = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
                       if (!emailRegex.hasMatch(value.trim())) {
-                        return 'Geçerli bir e-posta girin';
+                        return 'Geçerli bir e-posta adresi girin';
                       }
                       return null;
                     },
@@ -569,7 +569,7 @@ class _AddCustomerSheetState extends State<_AddCustomerSheet> {
                   const SizedBox(height: 12),
                   _buildField(
                     _paymentTermController,
-                    'Ödeme vadesi günü',
+                    'Ödeme vadesi (gün)',
                     Icons.schedule_outlined,
                     keyboardType: TextInputType.number,
                     validator: (value) {
@@ -678,10 +678,10 @@ class _EmptyCustomersState extends StatelessWidget {
         children: [
           const Icon(Icons.groups_outlined, size: 44, color: AppColors.gold500),
           const SizedBox(height: 12),
-          Text('Henüz müşteri eklenmedi.', style: Theme.of(context).textTheme.titleMedium),
+          Text('Henüz cari hesap bulunmuyor.', style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: 8),
           Text(
-            'İlk müşterinizi ekleyerek cari bakiye, tahsilat ve risk takibini başlatın.',
+            'İlk cari hesabınızı ekleyerek cari bakiye, tahsilat ve risk takibini başlatabilirsiniz.',
             textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.bodyMedium,
           ),
@@ -689,7 +689,7 @@ class _EmptyCustomersState extends StatelessWidget {
           ElevatedButton.icon(
             onPressed: onCreate,
             icon: const Icon(Icons.add),
-            label: const Text('İlk Müşteriyi Ekle'),
+            label: const Text('İlk cariyi ekle'),
           ),
         ],
       ),

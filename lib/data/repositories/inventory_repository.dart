@@ -74,6 +74,29 @@ class InventoryRepository {
     }
   }
 
+  Future<InventoryItemModel?> findInventoryItemByName(String name) async {
+    final normalized = _normalizeName(name);
+    if (normalized.isEmpty) {
+      return null;
+    }
+
+    final items = await fetchInventoryItems();
+    for (final item in items) {
+      if (_normalizeName(item.name) == normalized) {
+        return item;
+      }
+    }
+
+    for (final item in items) {
+      final itemName = _normalizeName(item.name);
+      if (itemName.contains(normalized) || normalized.contains(itemName)) {
+        return item;
+      }
+    }
+
+    return null;
+  }
+
   Future<InventoryItemModel> addInventoryItem(InventoryItemModel item) async {
     try {
       final user = _requireUser();
@@ -288,6 +311,14 @@ class InventoryRepository {
   Future<List<InventoryItemModel>> fetchOutOfStockItems() async {
     final items = await fetchInventoryItems();
     return items.where((item) => item.isOutOfStock).toList();
+  }
+
+  String _normalizeName(String value) {
+    return value
+        .toLowerCase()
+        .replaceAll(RegExp(r'[^a-z0-9çğıöşü\s]'), ' ')
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim();
   }
 
   User _requireUser() {

@@ -72,7 +72,7 @@ class ReportPdfService {
     final mm = date.month.toString().padLeft(2, '0');
     final dd = date.day.toString().padLeft(2, '0');
     final localizedTitle = _slugifyReportTitle(report.reportTypeLabel);
-    return 'SmartKOBI_${localizedTitle}_$yyyy-$mm-$dd.pdf';
+    return 'SmartKOBİ_${localizedTitle}_$yyyy-$mm-$dd.pdf';
   }
 
   Future<_PdfFontBundle> _loadPdfFonts() async {

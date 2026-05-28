@@ -26,7 +26,6 @@ class AppTheme {
       canvasColor: AppColors.surface,
       dividerColor: AppColors.border,
       cardColor: AppColors.surface,
-      dialogBackgroundColor: AppColors.surface,
       textTheme: _textTheme,
       appBarTheme: const AppBarTheme(
         backgroundColor: AppColors.scaffoldBackground,

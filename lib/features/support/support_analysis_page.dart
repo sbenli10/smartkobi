@@ -171,7 +171,7 @@ class _SupportAnalysisPageState extends State<SupportAnalysisPage> {
     return PageScaffold(
       title: 'Destek Analizi',
       subtitle:
-          'Isletme profilinize gore uygun olabilecek destekleri ve eksiklerinizi gorun.',
+          'İşletme profilinize göre uygun olabilecek destekleri ve eksiklerinizi görün.',
       actions: [
         IconButton(
           onPressed: _loading || _runningAnalysis ? null : _load,
@@ -180,7 +180,7 @@ class _SupportAnalysisPageState extends State<SupportAnalysisPage> {
         ),
       ],
       child: _loading
-          ? const Center(child: Text('Destek analizi hazirlaniyor...'))
+          ? const Center(child: Text('Destek analizi hazırlanıyor...'))
           : _errorMessage != null
               ? _ErrorState(message: _errorMessage!, onRetry: _load)
               : _buildContent(context),
@@ -256,7 +256,7 @@ class _SupportAnalysisPageState extends State<SupportAnalysisPage> {
           const SizedBox(height: 14),
           Text(
             analysis == null
-                ? 'Isletme profilinize gore uygun olabilecek destekleri gormek icin ilk analizi baslatin.'
+                ? 'İşletme profilinize göre uygun olabilecek destekleri görmek için ilk analizi başlatın.'
                 : (analysis.summary ?? analysis.scoreLabel),
             style: Theme.of(context).textTheme.bodyLarge,
           ),
@@ -288,7 +288,7 @@ class _SupportAnalysisPageState extends State<SupportAnalysisPage> {
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
                       : const Icon(Icons.analytics_outlined),
-                  label: Text(_runningAnalysis ? 'Analiz Hazirlaniyor' : 'Analizi Yenile'),
+                  label: Text(_runningAnalysis ? 'Analiz hazırlanıyor...' : 'Analizi yenile'),
                 ),
               ),
               if (profileMissing) ...[
@@ -297,7 +297,7 @@ class _SupportAnalysisPageState extends State<SupportAnalysisPage> {
                   child: OutlinedButton.icon(
                     onPressed: _openBusinessProfile,
                     icon: const Icon(Icons.business_center_outlined),
-                    label: const Text('Isletme Profilini Tamamla'),
+                    label: const Text('İşletme profilini tamamla'),
                   ),
                 ),
               ] else if ((analysis?.missingDocuments.isNotEmpty ?? false)) ...[
@@ -335,15 +335,15 @@ class _SupportAnalysisPageState extends State<SupportAnalysisPage> {
         children: [
           const SectionHeader(
             title: 'Profil Durumu',
-            subtitle: 'Destek analizi isletme profilindeki bilgilere dayanir',
+            subtitle: 'Destek analizi, işletme profilindeki bilgilere dayanır.',
           ),
           const SizedBox(height: 14),
           if (profile == null)
             _EmptyPanel(
-              title: 'Destek analizi icin isletme profilinizi olusturmaniz gerekiyor.',
+              title: 'Destek analizi için işletme profilinizi oluşturmanız gerekiyor.',
               description:
-                  'Profil olusturuldugunda sektor, NACE ve ihtiyac alanlarina gore on uygunluk analizi yapilabilir.',
-              buttonLabel: 'Isletme Profiline Git',
+                  'Profil oluşturulduğunda sektör, NACE ve ihtiyaç alanlarına göre ön uygunluk analizi yapılabilir.',
+              buttonLabel: 'İşletme profiline git',
               onPressed: _openBusinessProfile,
             )
           else ...[
@@ -357,22 +357,22 @@ class _SupportAnalysisPageState extends State<SupportAnalysisPage> {
               runSpacing: 10,
               children: [
                 _ProfilePill(label: 'Profil Tamamlama', value: '%${profile.profileCompletion}'),
-                _ProfilePill(label: 'Sektor', value: _orDash(profile.sector)),
+                _ProfilePill(label: 'Sektör', value: _orDash(profile.sector)),
                 _ProfilePill(label: 'NACE', value: _orDash(profile.naceCode)),
                 _ProfilePill(
                   label: 'Operasyon',
                   value: [
-                    if (profile.doesManufacture) 'Uretim',
-                    if (profile.doesExport) 'Ihracat',
-                    if (profile.wantsExport) 'Ihracat Hedefi',
-                    if (profile.needsDigitalization) 'Dijitallesme',
+                    if (profile.doesManufacture) 'Üretim',
+                    if (profile.doesExport) 'İhracat',
+                    if (profile.wantsExport) 'İhracat hedefi',
+                    if (profile.needsDigitalization) 'Dijitalleşme',
                   ].isEmpty
                       ? 'Standart'
                       : [
                           if (profile.doesManufacture) 'Uretim',
-                          if (profile.doesExport) 'Ihracat',
-                          if (profile.wantsExport) 'Ihracat Hedefi',
-                          if (profile.needsDigitalization) 'Dijitallesme',
+                          if (profile.doesExport) 'İhracat',
+                          if (profile.wantsExport) 'İhracat hedefi',
+                          if (profile.needsDigitalization) 'Dijitalleşme',
                         ].join(' • '),
                 ),
               ],
@@ -407,12 +407,12 @@ class _SupportAnalysisPageState extends State<SupportAnalysisPage> {
   Widget _buildScoreGrid() {
     final analysis = _analysis;
     final cards = [
-      ('KOSGEB', analysis?.kosgebScore ?? 0, 'Makine, yatirim ve KOBI gelisim basliklari'),
-      ('TUBITAK / Ar-Ge', analysis?.tubitakScore ?? 0, 'Ar-Ge, teknoloji ve dijitallesme potansiyeli'),
-      ('Ihracat Destekleri', analysis?.exportSupportScore ?? 0, 'Pazar gelistirme ve ihracat hazirligi'),
+      ('KOSGEB', analysis?.kosgebScore ?? 0, 'Makine, yatırım ve KOBİ gelişim başlıkları'),
+      ('TÜBİTAK / Ar-Ge', analysis?.tubitakScore ?? 0, 'Ar-Ge, teknoloji ve dijitalleşme potansiyeli'),
+      ('İhracat destekleri', analysis?.exportSupportScore ?? 0, 'Pazar geliştirme ve ihracat hazırlığı'),
       ('Belgelendirme', analysis?.certificationSupportScore ?? 0, 'TSE, ISO, CE ve teknik uygunluk'),
-      ('Dijitallesme', analysis?.digitalizationSupportScore ?? 0, 'Verimlilik ve dijital altyapi ihtiyaci'),
-      ('Finansman / Eximbank', analysis?.financingSupportScore ?? 0, 'Yatirim ve nakit destek potansiyeli'),
+      ('Dijitalleşme', analysis?.digitalizationSupportScore ?? 0, 'Verimlilik ve dijital altyapı ihtiyacı'),
+      ('Finansman / Eximbank', analysis?.financingSupportScore ?? 0, 'Yatırım ve nakit destek potansiyeli'),
     ];
 
     return SmartCard(
@@ -420,8 +420,8 @@ class _SupportAnalysisPageState extends State<SupportAnalysisPage> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const SectionHeader(
-            title: 'Destek Skorlari',
-            subtitle: 'Her baslikta on uygunluk tablosunu kisa ozetle gorun',
+            title: 'Destek skorları',
+            subtitle: 'Her başlıkta ön uygunluk tablosunu kısa bir özetle görün',
           ),
           const SizedBox(height: 14),
           LayoutBuilder(
@@ -568,18 +568,18 @@ class _SupportAnalysisPageState extends State<SupportAnalysisPage> {
   Widget _buildAiInsightCard() {
     final analysis = _analysis;
     final text = analysis == null
-        ? 'Profil ve analiz verisi olustugunda SmartKOBI hangi desteklerde on potansiyel oldugunu daha net gosterir.'
+        ? 'Profil ve analiz verisi oluştuğunda SmartKOBİ hangi desteklerde ön potansiyel olduğunu daha net gösterir.'
         : analysis.needsProfile
-            ? 'Profilinize gore destek analizi icin bazi temel bilgiler eksik. Sektor, NACE kodu, ciro ve ihtiyac alanlarini tamamlamaniz onerilir.'
-            : 'Profilinize gore ${_topInsight(analysis)} tarafinda on potansiyel gorunuyor. Analizin netlesmesi icin eksik profil alanlarini ve belge listesini tamamlamaniz onerilir.';
+            ? 'Profilinize göre destek analizi için bazı temel bilgiler eksik. Sektör, NACE kodu, ciro ve ihtiyaç alanlarını tamamlamanız önerilir.'
+            : 'Profilinize göre ${_topInsight(analysis)} tarafında ön potansiyel görünüyor. Analizin netleşmesi için eksik profil alanlarını ve belge listesini tamamlamanız önerilir.';
 
     return SmartCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const SectionHeader(
-            title: 'SmartKOBI AI Yorumu',
-            subtitle: 'Bu analiz on bilgilendirme niteligindedir',
+            title: 'SmartKOBİ yapay zekâ yorumu',
+            subtitle: 'Bu analiz ön bilgilendirme niteliğindedir',
           ),
           const SizedBox(height: 12),
           Text(text, style: Theme.of(context).textTheme.bodyLarge),
@@ -591,7 +591,7 @@ class _SupportAnalysisPageState extends State<SupportAnalysisPage> {
   Widget _buildInfoNote() {
     return SmartCard(
       child: Text(
-        'Bu analiz on bilgilendirme niteligindedir. Nihai basvuru sartlari ilgili kurumlarin guncel mevzuatina gore degerlendirilmelidir.',
+        'Bu analiz ön bilgilendirme niteliğindedir. Nihai başvuru şartları ilgili kurumların güncel mevzuatına göre değerlendirilmelidir.',
         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
               color: AppColors.textSecondary,
             ),
@@ -602,10 +602,10 @@ class _SupportAnalysisPageState extends State<SupportAnalysisPage> {
   String _topInsight(SupportAnalysisResultModel analysis) {
     final scores = <String, int>{
       'KOSGEB': analysis.kosgebScore,
-      'TUBITAK / Ar-Ge': analysis.tubitakScore,
-      'Ihracat destekleri': analysis.exportSupportScore,
+      'TÜBİTAK / Ar-Ge': analysis.tubitakScore,
+      'İhracat destekleri': analysis.exportSupportScore,
       'belgelendirme': analysis.certificationSupportScore,
-      'dijitallesme': analysis.digitalizationSupportScore,
+      'dijitalleşme': analysis.digitalizationSupportScore,
       'finansman': analysis.financingSupportScore,
     };
     final sorted = scores.entries.toList()..sort((a, b) => b.value.compareTo(a.value));

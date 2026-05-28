@@ -199,6 +199,18 @@ class AppFormatters {
     } else if (hasComma) {
       // 1250,50
       text = text.replaceAll(',', '.');
+    } else if (hasDot) {
+      // 1.500 -> 1500
+      // 1.500.000 -> 1500000
+      // 1000.50 -> 1000.50
+      final parts = text.split('.');
+      final looksLikeThousandsFormat =
+          parts.length > 1 &&
+          parts.skip(1).every((part) => part.length == 3);
+
+      if (looksLikeThousandsFormat) {
+        text = text.replaceAll('.', '');
+      }
     }
 
     return text;

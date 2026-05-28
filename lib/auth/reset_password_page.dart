@@ -18,7 +18,7 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
     final password = _passwordController.text.trim();
 
     if (password.length < 6) {
-      _showError('Sifre en az 6 karakter olmalı.');
+      _showError('Şifre en az 6 karakter olmalı.');
       return;
     }
 
@@ -35,7 +35,7 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Şifre başarıyla güncellendi.'),
+          content: Text('Şifreniz başarıyla güncellendi.'),
           backgroundColor: Colors.green,
         ),
       );
@@ -50,7 +50,7 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
         MaterialPageRoute(builder: (_) => const HomeShell()),
       );
     } catch (_) {
-      _showError('Şifre güncellendi.');
+      _showError('Şifre güncellenemedi. Lütfen tekrar deneyin.');
     }
 
     if (mounted) {
@@ -74,7 +74,7 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               const Text(
-                'Yeni Sifre Olustur',
+                'Yeni şifre oluştur',
                 style: TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.bold,
@@ -85,7 +85,7 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
                 controller: _passwordController,
                 obscureText: true,
                 decoration: const InputDecoration(
-                  labelText: 'Yeni Sifre',
+                  labelText: 'Yeni şifre',
                 ),
               ),
               const SizedBox(height: 20),
@@ -93,7 +93,7 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
                 onPressed: _loading ? null : _updatePassword,
                 child: _loading
                     ? const CircularProgressIndicator()
-                    : const Text('Sifreyi Guncelle'),
+                    : const Text('Şifreyi güncelle'),
               ),
             ],
           ),

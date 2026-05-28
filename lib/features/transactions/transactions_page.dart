@@ -88,7 +88,7 @@ class _TransactionsPageState extends State<TransactionsPage> {
       if (!mounted) {
         return;
       }
-      _showSnackBar('İşlem başarıyla kaydedildi.');
+      _showSnackBar('Kayıt başarıyla eklendi.');
     } catch (e) {
       if (!mounted) {
         return;
@@ -104,7 +104,7 @@ class _TransactionsPageState extends State<TransactionsPage> {
       if (!mounted) {
         return;
       }
-      _showSnackBar('İşlem silindi.');
+      _showSnackBar('Kayıt başarıyla silindi.');
     } catch (e) {
       if (!mounted) {
         return;
@@ -127,7 +127,7 @@ class _TransactionsPageState extends State<TransactionsPage> {
     if (message.contains('giriş')) {
       return message;
     }
-    return message.isEmpty ? 'Finans işlemi sırasında bir sorun oluştu.' : message;
+    return message.isEmpty ? 'Finans işlemi sırasında bir sorun oluştu. Lütfen tekrar deneyin.' : message;
   }
 
   @override
@@ -148,7 +148,7 @@ class _TransactionsPageState extends State<TransactionsPage> {
         heroTag: 'transactionsFab',
         onPressed: _openAddTransactionSheet,
         icon: const Icon(Icons.add),
-        label: const Text('Yeni İşlem'),
+        label: const Text('Yeni işlem'),
       ),
       child: _loading
           ? const Center(child: CircularProgressIndicator())
@@ -203,40 +203,40 @@ class _FinanceSummaryGrid extends StatelessWidget {
       _SummaryData(
         title: 'Toplam Gelir',
         value: AppFormatters.formatCurrency(income),
-        description: 'Kaydedilen tüm gelir toplamı',
+        description: 'Kaydedilen tüm gelirlerin toplamı',
         icon: Icons.trending_up,
         color: AppColors.success,
       ),
       _SummaryData(
         title: 'Toplam Gider',
         value: AppFormatters.formatCurrency(expense),
-        description: 'Kaydedilen tüm gider toplamı',
+        description: 'Kaydedilen tüm giderlerin toplamı',
         icon: Icons.trending_down,
         color: AppColors.danger,
       ),
       _SummaryData(
-        title: 'Net Kâr/Zarar',
+        title: 'Net kâr/zarar',
         value: AppFormatters.formatCurrency(profit),
         description: profit >= 0 ? 'Pozitif finansal denge' : 'Gider baskısı dikkat çekiyor',
         icon: Icons.account_balance_wallet_outlined,
         color: profit >= 0 ? AppColors.gold500 : AppColors.warning,
       ),
       _SummaryData(
-        title: 'Gider/Gelir Oranı',
+        title: 'Gider/gelir oranı',
         value: AppFormatters.formatPercent(ratio * 100),
         description: 'Gelire göre gider yükü',
         icon: Icons.pie_chart_outline,
         color: AppColors.info,
       ),
       _SummaryData(
-        title: 'Bekleyen Ödemeler',
+        title: 'Bekleyen ödemeler',
         value: AppFormatters.formatCurrency(pending),
         description: 'Ödenmemiş gider yükümlülükleri',
         icon: Icons.payments_outlined,
         color: AppColors.warning,
       ),
       _SummaryData(
-        title: 'Tahsil Edilecek Tutar',
+        title: 'Tahsil edilecek tutar',
         value: AppFormatters.formatCurrency(receivable),
         description: 'Bekleyen gelir tahsilatları',
         icon: Icons.request_quote_outlined,
@@ -317,8 +317,8 @@ class _FinanceInsightCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const SectionHeader(
-            title: 'SmartKOBİ AI Finans Yorumu',
-            subtitle: 'Kayıtlarınıza göre oluşturulan hızlı yönetim notu',
+            title: 'SmartKOBİ yapay zekâ finans yorumu',
+            subtitle: 'Kayıtlarınıza göre oluşturulan kısa yönetim notu',
           ),
           const SizedBox(height: 12),
           Container(
@@ -466,7 +466,12 @@ class _TransactionCard extends StatelessWidget {
                   children: [
                     Text(transaction.title, style: Theme.of(context).textTheme.titleMedium),
                     const SizedBox(height: 4),
-                    Text(transaction.category, style: Theme.of(context).textTheme.bodyMedium),
+                    Text(
+                      transaction.contactName?.trim().isNotEmpty == true
+                          ? '${transaction.category} • ${transaction.contactName}'
+                          : transaction.category,
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
                   ],
                 ),
               ),
@@ -554,12 +559,12 @@ class _EmptyFinanceState extends StatelessWidget {
           const Icon(Icons.receipt_long_outlined, size: 42, color: AppColors.gold500),
           const SizedBox(height: 12),
           Text(
-            'Henüz gelir-gider kaydı yok.',
+            'Henüz gelir gider kaydı bulunmuyor.',
             style: Theme.of(context).textTheme.titleMedium,
           ),
           const SizedBox(height: 8),
           Text(
-            'İlk işleminizi ekleyerek finansal takibi ve SmartKOBİ analizlerini başlatın.',
+            'İlk işleminizi ekleyerek finansal takibi başlatabilirsiniz.',
             textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.bodyMedium,
           ),
@@ -567,7 +572,7 @@ class _EmptyFinanceState extends StatelessWidget {
           ElevatedButton.icon(
             onPressed: onCreate,
             icon: const Icon(Icons.add),
-            label: const Text('İlk İşlemi Ekle'),
+            label: const Text('İlk işlemi ekle'),
           ),
         ],
       ),
@@ -631,10 +636,10 @@ class _AddTransactionSheetState extends State<_AddTransactionSheet> {
                     ),
                   ),
                   const SizedBox(height: 18),
-                  Text('Yeni İşlem', style: Theme.of(context).textTheme.titleLarge),
+                  Text('Yeni işlem', style: Theme.of(context).textTheme.titleLarge),
                   const SizedBox(height: 6),
                   Text(
-                    'Gelir veya gider kaydı oluşturarak finans görünümünü güncelleyin.',
+                    'Gelir veya gider kaydı oluşturarak finans görünümünüzü güncelleyin.',
                     style: Theme.of(context).textTheme.bodyMedium,
                   ),
                   const SizedBox(height: 18),
@@ -665,7 +670,7 @@ class _AddTransactionSheetState extends State<_AddTransactionSheet> {
                     ),
                     validator: (value) {
                       if (value == null || value.trim().isEmpty) {
-                        return 'Başlık gerekli';
+                        return 'Başlık girin';
                       }
                       return null;
                     },
@@ -679,7 +684,7 @@ class _AddTransactionSheetState extends State<_AddTransactionSheet> {
                     ),
                     validator: (value) {
                       if (value == null || value.trim().isEmpty) {
-                        return 'Kategori gerekli';
+                        return 'Kategori seçin';
                       }
                       return null;
                     },
@@ -717,7 +722,7 @@ class _AddTransactionSheetState extends State<_AddTransactionSheet> {
                   DropdownButtonFormField<String>(
                     initialValue: _paymentStatus,
                     decoration: const InputDecoration(
-                      labelText: 'Ödeme Durumu',
+                      labelText: 'Ödeme durumu',
                       prefixIcon: Icon(Icons.credit_score_outlined),
                     ),
                     items: const [
@@ -793,6 +798,7 @@ class _AddTransactionSheetState extends State<_AddTransactionSheet> {
         title: _titleController.text.trim(),
         category: _categoryController.text.trim(),
         amount: amount,
+        contactName: null,
         transactionDate: _transactionDate,
         paymentStatus: _paymentStatus,
         description: _descriptionController.text.trim().isEmpty

@@ -38,7 +38,7 @@ class _HomeShellState extends State<HomeShell> {
     'Genel',
     'İşletme',
     'Analiz',
-    'Akıllı Asistan',
+    'Akıllı asistan',
     'Büyüme',
     'Yönetim',
   ];
@@ -47,8 +47,8 @@ class _HomeShellState extends State<HomeShell> {
     return [
       const SmartKobiNavItem(
         id: 'dashboard',
-        label: 'Ana Sayfa',
-        description: 'İşletmenizin genel özeti ve hızlı aksiyonlar',
+        label: 'Ana ekran',
+        description: 'İşletmenizin genel özeti ve hızlı işlemler',
         icon: Icons.dashboard_outlined,
         selectedIcon: Icons.dashboard,
         page: DashboardPage(),
@@ -66,8 +66,8 @@ class _HomeShellState extends State<HomeShell> {
       ),
      const SmartKobiNavItem(
         id: 'profit-leakage',
-        label: 'Fiyat Radarı',
-        description: 'Alış fiyat artışlarını ve gizli zararları görün',
+        label: 'Fiyat radarı',
+        description: 'Alış fiyatı artışlarını ve gizli kayıpları görün',
         icon: Icons.price_change_outlined,
         selectedIcon: Icons.price_change,
         page: ProfitLeakagePage(),
@@ -107,7 +107,7 @@ class _HomeShellState extends State<HomeShell> {
       const SmartKobiNavItem(
         id: 'customers',
         label: 'Cari',
-        description: 'Müşteri ve tahsilat yönetimi',
+        description: 'Cari hesap ve tahsilat yönetimi',
         icon: Icons.people_outline,
         selectedIcon: Icons.people,
         page: CustomersPage(),
@@ -117,7 +117,7 @@ class _HomeShellState extends State<HomeShell> {
       SmartKobiNavItem(
         id: 'inventory',
         label: 'Stok',
-        description: 'Ürünler, hareketler ve kritik stok',
+        description: 'Ürünler, hareketler ve kritik stoklar',
         icon: Icons.inventory_2_outlined,
         selectedIcon: Icons.inventory_2,
         page: InventoryPage(),
@@ -126,8 +126,8 @@ class _HomeShellState extends State<HomeShell> {
       ),
       const SmartKobiNavItem(
         id: 'cashflow',
-        label: 'Nakit AI',
-        description: '30/60 günlük nakit tahmini ve risk analizi',
+        label: 'Nakit akışı',
+        description: '30 ve 60 günlük nakit tahmini ile risk analizi',
         icon: Icons.waterfall_chart_outlined,
         selectedIcon: Icons.waterfall_chart,
         page: CashflowPage(),
@@ -135,26 +135,26 @@ class _HomeShellState extends State<HomeShell> {
       ),
       const SmartKobiNavItem(
         id: 'advisor',
-        label: 'AI Danışman',
-        description: 'İşletme verilerine göre kısa danışmanlık',
+        label: 'Yapay zekâ danışmanı',
+        description: 'İşletme verilerinize göre kısa öneriler alın',
         icon: Icons.smart_toy_outlined,
         selectedIcon: Icons.smart_toy,
         page: AiChatPage(),
-        group: 'Akıllı Asistan',
+        group: 'Akıllı asistan',
       ),
       const SmartKobiNavItem(
         id: 'ai-analytics',
-        label: 'AI Analizler',
+        label: 'Yapay zekâ analizleri',
         description: 'Ek analizler ve veri yorumları',
         icon: Icons.insights_outlined,
         selectedIcon: Icons.insights,
         page: AiPage(),
-        group: 'Akıllı Asistan',
+        group: 'Akıllı asistan',
       ),
       const SmartKobiNavItem(
         id: 'support',
-        label: 'Destek Analizi',
-        description: 'KOSGEB, ihracat ve finansman ön uygunluk analizi',
+        label: 'Destek analizi',
+        description: 'KOSGEB, ihracat ve finansman için ön uygunluk analizi',
         icon: Icons.workspace_premium_outlined,
         selectedIcon: Icons.workspace_premium,
         page: SupportAnalysisPage(),
@@ -171,8 +171,8 @@ class _HomeShellState extends State<HomeShell> {
       ),
       const SmartKobiNavItem(
         id: 'business-profile',
-        label: 'İşletme Profili',
-        description: 'KOBİ kimlik kartı ve profil tamamlama',
+        label: 'İşletme profili',
+        description: 'KOBİ kimlik kartı ve profil tamamlama bilgileri',
         icon: Icons.business_center_outlined,
         selectedIcon: Icons.business_center,
         page: BusinessProfilePage(),
@@ -498,7 +498,7 @@ class _SidebarBrand extends StatelessWidget {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  'Dijital İş Ortağınız',
+                  'Dijital iş ortağınız',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         color: AppColors.textSecondary,
                       ),
@@ -662,7 +662,7 @@ class _SidebarFooter extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'İşletme Profili',
+                  'İşletme profili',
                   style: Theme.of(context).textTheme.titleSmall?.copyWith(color: AppColors.textPrimary),
                 ),
                 const SizedBox(height: 6),
@@ -726,7 +726,7 @@ class _SmartBottomNav extends StatelessWidget {
             NavigationDestination(
               icon: Icon(Icons.dashboard_outlined),
               selectedIcon: Icon(Icons.dashboard),
-              label: 'Ana Sayfa',
+              label: 'Ana ekran',
             ),
             NavigationDestination(
               icon: Icon(Icons.account_balance_wallet_outlined),
@@ -794,12 +794,12 @@ class _MoreModulesSheet extends StatelessWidget {
               ),
               const SizedBox(height: 18),
               Text(
-                'Diğer Modüller',
+                'Diğer modüller',
                 style: Theme.of(context).textTheme.titleLarge,
               ),
               const SizedBox(height: 6),
               Text(
-                'Nakit AI, destekler, raporlar ve yönetim modüllerine buradan geçin.',
+                'Nakit akışı, destekler, raporlar ve yönetim modüllerine buradan geçin.',
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                       color: AppColors.textSecondary,
                     ),

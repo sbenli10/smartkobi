@@ -7,7 +7,7 @@ class AuthScaffold extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0x000b1f3a), // #0B1F3A - Gece Laciverti
+      backgroundColor: const Color(0xFF0B1F3A), // #0B1F3A - Gece Laciverti
       body: Stack(
         children: [
           // Arka plan soft fintech glow efektleri
@@ -20,7 +20,13 @@ class AuthScaffold extends StatelessWidget {
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 color: const Color(0xffc89b3c).withValues(alpha: 0.05),
-                blurRadius: 120,
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xffc89b3c).withValues(alpha: 0.22),
+                    blurRadius: 120,
+                    spreadRadius: 18,
+                  ),
+                ],
               ),
             ),
           ),
@@ -33,7 +39,13 @@ class AuthScaffold extends StatelessWidget {
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 color: const Color(0xff081a2f).withValues(alpha: 0.8),
-                blurRadius: 90,
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xff081a2f).withValues(alpha: 0.7),
+                    blurRadius: 90,
+                    spreadRadius: 12,
+                  ),
+                ],
               ),
             ),
           ),

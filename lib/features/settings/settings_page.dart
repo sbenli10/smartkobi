@@ -15,7 +15,7 @@ class SettingsPage extends StatelessWidget {
       child: ListView(
         children: [
           _SettingTile(
-            title: 'İşletme Profili',
+            title: 'İşletme profili',
             subtitle: 'Firma bilgileri, vergi numarası ve işletme ölçeği',
             icon: Icons.business_outlined,
             onTap: () {
@@ -27,7 +27,7 @@ class SettingsPage extends StatelessWidget {
             },
           ),
           const _SettingTile(
-            title: 'Kullanıcı ve Yetkiler',
+            title: 'Kullanıcılar ve yetkiler',
             subtitle: 'Rol bazlı erişim ve ekip üyeleri yönetimi',
             icon: Icons.manage_accounts_outlined,
           ),

@@ -1,4 +1,3 @@
-import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -94,9 +93,11 @@ class ReceiptScannerRepository {
     }).eq('id', scan.id);
 
     // 3. Kâr Sızıntısı Analizi / Fiyat Radarı için kalemleri kaydet
-    if (scan.aiResult != null && scan.aiResult!['lineItems'] != null) {
+    final aiResult = scan.aiResult;
+    final lineItems = aiResult['lineItems'];
+    if (lineItems is List) {
       final leakageRepo = ProfitLeakageRepository();
-      final items = scan.aiResult!['lineItems'] as List;
+      final items = lineItems;
       
       for (var item in items) {
         try {
